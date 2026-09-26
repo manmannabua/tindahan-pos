@@ -106,6 +106,37 @@ async def test_refresh_token_reuse_revokes_family(client: AsyncClient, db: Async
     assert resp.status_code == 401
 
 
+async def test_refresh_race_within_grace_gets_a_fresh_session(client: AsyncClient) -> None:
+    """A reload aborted the refresh response, so the browser still holds the old token."""
+    await signup(client)
+    old = client.cookies.get("rt_admin")
+    assert (await client.post("/api/v1/auth/refresh", json={"client": "admin"})).status_code == 200
+    rotated = client.cookies.get("rt_admin")
+
+    client.cookies.clear()
+    client.cookies.set("rt_admin", old, path="/api/v1/auth")  # the lost response
+    resp = await client.post("/api/v1/auth/refresh", json={"client": "admin"})
+    assert resp.status_code == 200, resp.text
+    newest = resp.cookies.get("rt_admin")
+    assert newest and newest not in (old, rotated)
+
+    # The session continues normally from the newest token.
+    client.cookies.clear()
+    client.cookies.set("rt_admin", newest, path="/api/v1/auth")
+    assert (await client.post("/api/v1/auth/refresh", json={"client": "admin"})).status_code == 200
+
+
+async def test_refresh_race_after_logout_is_refused(client: AsyncClient) -> None:
+    await signup(client)
+    old = client.cookies.get("rt_admin")
+    assert (await client.post("/api/v1/auth/refresh", json={"client": "admin"})).status_code == 200
+    assert (await client.post("/api/v1/auth/logout", json={"client": "admin"})).status_code == 204
+    client.cookies.clear()
+    client.cookies.set("rt_admin", old, path="/api/v1/auth")
+    resp = await client.post("/api/v1/auth/refresh", json={"client": "admin"})
+    assert resp.status_code == 401
+
+
 async def test_logout_revokes_session(client: AsyncClient) -> None:
     await signup(client)
     token = client.cookies.get("rt_admin")

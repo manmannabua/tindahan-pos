@@ -33,9 +33,12 @@ from app.modules.users.repository import (
 from app.modules.users.service import set_pin_credentials
 from app.shared.exceptions import AuthenticationError, PermissionDeniedError
 
-# A token rotated less than this long ago is treated as a benign race (two tabs refreshing at
-# once), not as theft. The request is refused, but the token family is not revoked.
+# A token rotated less than this long ago is treated as a benign race, not as theft: two tabs
+# refreshing at once, or a page reload that aborted the refresh response so the browser never
+# stored the new cookie. The caller gets a fresh session rotated from the newest token of the
+# family. Reuse after the grace window revokes the whole family.
 _ROTATION_GRACE = timedelta(seconds=15)
+_MAX_CHAIN = 10
 
 
 @dataclass(frozen=True, slots=True)
@@ -198,9 +201,16 @@ async def refresh(
     if token is None or token.client != client.value:
         raise AuthenticationError("Invalid refresh token", code="auth.invalid_refresh")
 
-    if token.revoked_at is not None:
-        if token.replaced_by_id is not None and now - token.revoked_at < _ROTATION_GRACE:
+    if (
+        token.revoked_at is not None
+        and token.replaced_by_id is not None
+        and now - token.revoked_at < _ROTATION_GRACE
+    ):
+        latest = await _latest_in_chain(db, token)
+        if latest is None:
             raise AuthenticationError("Refresh token already rotated", code="auth.refresh_race")
+        token = latest  # continue as a normal rotation of the newest token
+    if token.revoked_at is not None:
         # Reuse of a rotated token: assume theft, revoke every token in the family.
         await _revoke_family(db, token.family_id, now)
         user = await db.get(User, token.user_id)
@@ -232,6 +242,23 @@ async def refresh(
     token.replaced_by_id = new_row.id
     await db.commit()
     return session
+
+
+async def _latest_in_chain(db: AsyncSession, token: RefreshToken) -> RefreshToken | None:
+    """The newest, still-valid token rotated from `token` (locked), or None."""
+    current = token
+    for _ in range(_MAX_CHAIN):
+        if current.replaced_by_id is None:
+            break
+        successor = await db.scalar(
+            select(RefreshToken).where(RefreshToken.id == current.replaced_by_id).with_for_update()
+        )
+        if successor is None:
+            return None
+        current = successor
+    if current.revoked_at is not None or current is token:
+        return None
+    return current
 
 
 async def logout(db: AsyncSession, refresh_plain: str | None) -> None:

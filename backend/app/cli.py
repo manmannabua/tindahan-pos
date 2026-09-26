@@ -8,6 +8,7 @@ import argparse
 import asyncio
 import getpass
 import sys
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 
@@ -52,6 +53,7 @@ async def seed_dev() -> None:
                 owner_password=DEMO_PASSWORD,
             ),
         )
+        company.onboarding_completed_at = datetime.now(UTC)  # the demo is already set up
         roles = {
             r.code: r.id
             for r in await db.scalars(select(Role).where(Role.company_id == company.id))

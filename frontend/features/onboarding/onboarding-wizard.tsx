@@ -24,6 +24,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useBranches, useUpdateBranch } from "@/features/branches/api";
+import { useReference, useSaveReference } from "@/features/catalog/api";
 import { useCompany, useCompleteOnboarding, useFeatureSettings, useSaveFeatures, useUpdateCompany } from "@/features/settings/api";
 import {
   type FeatureChoices,
@@ -118,18 +119,61 @@ function StepCard({
   );
 }
 
+function VatChoice({ value, onChange }: { value: boolean | null; onChange: (vat: boolean) => void }) {
+  const options = [
+    { vat: false, label: "No, not VAT-registered", hint: "Most small stores (sales under ₱3M a year). Receipts say NON-VAT REG TIN." },
+    { vat: true, label: "Yes, VAT-registered", hint: "Receipts show VAT and say VAT REG TIN." },
+  ];
+  return (
+    <fieldset className="grid gap-2">
+      <legend className="mb-1 text-sm font-medium">Is the business VAT-registered?</legend>
+      <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="VAT registration">
+        {options.map((o) => (
+          <button
+            key={o.label}
+            type="button"
+            role="radio"
+            aria-checked={value === o.vat}
+            onClick={() => onChange(o.vat)}
+            className={cn(
+              "rounded-xl border p-3 text-left transition-colors",
+              value === o.vat ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:bg-muted/60",
+            )}
+          >
+            <span className="block font-medium">{o.label}</span>
+            <span className="block text-sm text-muted-foreground">{o.hint}</span>
+          </button>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
+
 function BusinessStep({ company, onDone }: { company: Company; onDone: () => void }) {
   const update = useUpdateCompany();
+  const { data: taxRates } = useReference("tax-rates");
+  const saveTaxRate = useSaveReference("tax-rates");
   const [v, setV] = useState({
     name: company.name,
     legal_name: company.legal_name ?? "",
     tin: company.tin ?? "",
-    vat_registered: company.vat_registered,
+    // Asked explicitly: a wrong default would put VAT on every receipt.
+    vat_registered: null as boolean | null,
     prices_include_tax: company.prices_include_tax,
   });
   const next = async () => {
+    if (v.vat_registered === null) return;
     try {
-      await update.mutateAsync({ ...v, name: v.name.trim(), legal_name: emptyToNull(v.legal_name), tin: emptyToNull(v.tin) });
+      await update.mutateAsync({
+        name: v.name.trim(),
+        legal_name: emptyToNull(v.legal_name),
+        tin: emptyToNull(v.tin),
+        vat_registered: v.vat_registered,
+        prices_include_tax: v.prices_include_tax,
+      });
+      // New products get the matching tax by default: 12% VAT, or VAT-exempt for non-VAT stores.
+      const wanted = (taxRates ?? []).find((t) => t.code === (v.vat_registered ? "VAT12" : "VAT_EXEMPT"));
+      if (wanted && !wanted.is_default) await saveTaxRate.mutateAsync({ id: wanted.id, data: { is_default: true } });
       onDone();
     } catch (e) {
       toast.error(errorMessage(e));
@@ -140,16 +184,24 @@ function BusinessStep({ company, onDone }: { company: Company; onDone: () => voi
       title="Tell us about your business"
       description="This goes on your receipts. You can change it later in Settings → Company."
       onNext={() => void next()}
-      busy={update.isPending}
-      nextDisabled={v.name.trim().length < 2}
+      busy={update.isPending || saveTaxRate.isPending}
+      nextDisabled={v.name.trim().length < 2 || v.vat_registered === null}
     >
       <TextField label="Business name" value={v.name} onChange={(e) => setV({ ...v, name: e.target.value })} />
       <div className="grid gap-4 sm:grid-cols-2">
         <TextField label="Registered (legal) name" description="Optional" value={v.legal_name} onChange={(e) => setV({ ...v, legal_name: e.target.value })} />
         <TextField label="TIN" description="Optional" value={v.tin} onChange={(e) => setV({ ...v, tin: e.target.value })} />
       </div>
-      <SwitchRow id="vat" label="VAT-registered" hint="Receipts say VAT REG TIN; off prints NON-VAT REG TIN." checked={v.vat_registered} onChange={(on) => setV({ ...v, vat_registered: on })} />
-      <SwitchRow id="incl" label="Shelf prices include VAT" hint="Usual in the Philippines: VAT is taken out of the price." checked={v.prices_include_tax} onChange={(on) => setV({ ...v, prices_include_tax: on })} />
+      <VatChoice value={v.vat_registered} onChange={(vat) => setV({ ...v, vat_registered: vat })} />
+      {v.vat_registered && (
+        <SwitchRow
+          id="incl"
+          label="Shelf prices include VAT"
+          hint="Usual in the Philippines: VAT is taken out of the price."
+          checked={v.prices_include_tax}
+          onChange={(on) => setV({ ...v, prices_include_tax: on })}
+        />
+      )}
     </StepCard>
   );
 }

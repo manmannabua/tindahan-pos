@@ -19,6 +19,8 @@ test("sign up, manage branches and users, sign out", async ({ page }) => {
   await expect(page).toHaveURL(/\/onboarding$/, { timeout: 30_000 }); // first visit compiles the page in dev
   await expect(page.getByRole("heading", { name: /Let's set up your store/ })).toBeVisible();
   await page.getByRole("textbox", { name: "TIN" }).fill("123-456-789-000");
+  await expect(page.getByRole("button", { name: "Continue" })).toBeDisabled(); // VAT must be answered
+  await page.getByRole("radio", { name: /No, not VAT-registered/ }).click();
   await page.getByRole("button", { name: "Continue" }).click();
   await page.getByRole("textbox", { name: "Address" }).fill("123 Rizal Ave, Manila");
   await page.getByRole("button", { name: "Continue" }).click();

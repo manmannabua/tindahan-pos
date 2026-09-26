@@ -241,11 +241,22 @@ Last updated: 2026-09-26
 - Onboarding wizard for new sign-ups (business → store → features → next steps); existing
   companies were marked onboarded by migration `8f9e3d20bc71`.
 
-**Current checks (all green):** backend `pytest` 171 · ruff · mypy strict. Frontend lint ·
-typecheck · 264 Vitest · build · **11/11 Playwright** (sign-up + onboarding + feature switching,
-catalog→PO→report export, offline 20-sale critical test incl. journal, two-terminal oversell,
-Phase 7 offline promo/customer/void/return, offline SC sale + cross-terminal return, online
-catalog, offline receipt journal, POS feature switches, smoke).
+### Hardening round ✅
+- Sign-in: a refresh token reused within the 15 s grace window (reload aborted the refresh
+  response) now rotates the newest token of its family instead of returning 401; reuse after the
+  window still revokes the family (theft).
+- Built-in Store Manager role gets `settings.manage` (terminal settings at the counter);
+  migration `5ca76ecbb3e4` adds it to existing system Manager roles.
+- Onboarding asks "VAT-registered?" explicitly (no default); non-VAT makes VAT Exempt the
+  default tax rate for new products.
+- Plain-language messages for session/terminal/sync/setup error codes; POS printer setting
+  explains the browser print dialog pause and `--kiosk-printing`.
+- New store-front app icons (`frontend/scripts/generate-icons.py`).
+- Dev DB reset: DEMO company (onboarded, all features on, 8 products, online catalog
+  `demo-mini-mart` published); `seed-dev` now marks the demo as onboarded.
+
+**Current checks (all green):** backend `pytest` 173 · ruff · mypy strict. Frontend lint ·
+typecheck · 264 Vitest · build · **11/11 Playwright**.
 
 ## Next (suggested)
 1. Deploy a staging VM with `docker-compose.prod.yml` (never run yet: no Docker on the dev
@@ -254,7 +265,7 @@ catalog, offline receipt journal, POS feature switches, smoke).
 2. Test ESC/POS printing + drawer kick on real printers; per-item stock page for deep links.
 3. PH-specific leftovers: senior-citizen 5% discount on basic necessities (DTI/DA rules), BIR
    accreditation itself (a formal process, not code).
-4. Friendly messages for newer error codes in `frontend/lib/api/errors.ts`; SKU toggle on labels.
+4. SKU toggle on labels; a dashboard "getting started" checklist for new businesses.
 5. Online catalog extras: promo badges, store subdomains, "ask about this item" via Messenger,
    visit statistics (docs/ONLINE_CATALOG.md §5).
 6. Multi-item promotion bundles (needs a new evaluator version + vectors on both sides).
@@ -285,10 +296,6 @@ catalog, offline receipt journal, POS feature switches, smoke).
   cannot run here until Redis (or Memurai) is installed; tasks are tested by direct calls.
 - PostgreSQL 17 runs as a Windows service; superuser `postgres`/`postgres` (dev only);
   app role `pos`/`pos`; databases `pos` (dev) and `pos_test` (tests drop/recreate schema).
-- Refresh-token rotation edge case: if a page reload aborts an in-flight `/auth/refresh`, the
-  browser never stores the rotated cookie and the next refresh gets `auth.refresh_race` (401) →
-  the user must sign in again. Consider answering a within-grace reuse with a fresh token of the
-  same family instead of 401.
 - Port 8000 on this machine is currently taken by another project (a Laravel dev server from
   `D:/dev/booking-system`). This session ran the POS backend on **8010**: start the web app with
   `API_ORIGIN=http://localhost:8010` and e2e with `E2E_API_URL=http://localhost:8010/api/v1`.
@@ -300,11 +307,11 @@ catalog, offline receipt journal, POS feature switches, smoke).
   (not the StrEnum): compare with `==`, never call `.value` on an ORM attribute.
 - `tests/committed/` commits real rows into `pos_test` (schema is dropped at the next session
   start). Tests in `integration/` must scope global counts/queries by company.
-- Frontend: service worker registers only in production builds; no "update available" prompt
-  yet; icons are placeholders; Playwright uses installed Chrome (`PW_CHANNEL=chrome`) because
+- Frontend: service worker registers only in production builds (the POS shows "Update
+  available — reload when idle"); Playwright uses installed Chrome (`PW_CHANNEL=chrome`) because
   Smart App Control blocks the downloaded Chromium.
-- Dev DB `pos` contains leftover smoke/e2e/benchmark companies (codes `SMK…`, `E2E…`, `ADM…`,
-  `BENCH…`); e2e runs need the backend started with `RATE_LIMIT_ENABLED=false`.
+- Dev DB `pos` was reset on 2026-09-26 (DEMO only); e2e runs add `E2E…`/`ADM…` companies again.
+  e2e runs need the backend started with `RATE_LIMIT_ENABLED=false`.
 - Offline, POS returns work only against sales stored on that terminal; online they can use
   any terminal's sale via `/sync/sales/lookup`.
 - Serwist uses native esbuild (esbuild-wasm failed on Windows paths); it currently runs under
@@ -320,7 +327,7 @@ catalog, offline receipt journal, POS feature switches, smoke).
   sync → server check; `TERMINAL=T02` for a second terminal). Screenshots per step.
 
 ## Pending migrations
-- None pending. Latest: `8f9e3d20bc71` company features + onboarding (before it: `fbaf8685d085` receipt journal, `5f5a4551ceb3` storefronts + `products.show_online`, `e1c3cb7b756c` SC/PWD discount + BIR fields, `ff379da3c120` import jobs + trigram search). Revisions (in order): `ef8f6c10c69c` foundation, `1e3cfbdadecb` catalog and
+- None pending. Latest: `5ca76ecbb3e4` managers manage terminal settings (before it: `8f9e3d20bc71` company features + onboarding, `fbaf8685d085` receipt journal, `5f5a4551ceb3` storefronts + `products.show_online`, `e1c3cb7b756c` SC/PWD discount + BIR fields, `ff379da3c120` import jobs + trigram search). Revisions (in order): `ef8f6c10c69c` foundation, `1e3cfbdadecb` catalog and
   inventory ledger, `43cc34f6bf79` sales/payments/cash sessions/sync, `311a2c40e3d3` inventory
   documents, `34f69fa13fd1` suppliers and purchasing, `428f5d187452` customers/returns/
   promotions, `c5a1c4ea7bf5` expenses and report exports. Run `uv run alembic upgrade head`.

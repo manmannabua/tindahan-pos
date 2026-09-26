@@ -130,6 +130,7 @@ _MANAGER = _CASHIER | {
     P.REPORTS_VIEW,
     P.REVIEW_FLAGS_MANAGE,
     P.DEVICES_REGISTER,
+    P.SETTINGS_MANAGE,  # terminal settings (auto-print, printer, scanner) at the counter
     P.SYNC_MONITOR,
 }
 

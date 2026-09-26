@@ -179,6 +179,13 @@ function PrinterSection({
           </Button>
         ))}
       </div>
+      {mode === "browser" && (
+        <p className="text-sm text-muted-foreground">
+          The browser shows a print dialog for every receipt, and the terminal pauses (including syncing) until it is
+          closed. For a dedicated counter PC, start Chrome with <code className="rounded bg-muted px-1">--kiosk-printing</code> to
+          print silently to the default printer, or use an ESC/POS printer above.
+        </p>
+      )}
       {escpos && !isSupported(escpos) && (
         <p className="text-sm text-destructive">This browser can&apos;t reach printers directly (Chrome or Edge on desktop/Android can). Receipts will print through the browser.</p>
       )}

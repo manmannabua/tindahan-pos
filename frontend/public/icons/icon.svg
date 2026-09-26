@@ -1,5 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <rect width="64" height="64" rx="14" fill="#0f5257"/>
-  <path d="M20 13h24v38l-4-3-4 3-4-3-4 3-4-3-4 3z" fill="#fff"/>
-  <path d="M25 22h14M25 28h14M25 34h9" stroke="#0f5257" stroke-width="3" stroke-linecap="round"/>
+  <rect x="12.00" y="11.00" width="40.00" height="3.50" rx="1.50" fill="#ffffff"/>
+  <rect x="12.00" y="14.50" width="10.00" height="8.50" rx="0.00" fill="#ffffff"/>
+  <ellipse cx="17.00" cy="23.00" rx="5.00" ry="5.00" fill="#ffffff"/>
+  <rect x="22.00" y="14.50" width="10.00" height="8.50" rx="0.00" fill="#cfe8e5"/>
+  <ellipse cx="27.00" cy="23.00" rx="5.00" ry="5.00" fill="#cfe8e5"/>
+  <rect x="32.00" y="14.50" width="10.00" height="8.50" rx="0.00" fill="#ffffff"/>
+  <ellipse cx="37.00" cy="23.00" rx="5.00" ry="5.00" fill="#ffffff"/>
+  <rect x="42.00" y="14.50" width="10.00" height="8.50" rx="0.00" fill="#cfe8e5"/>
+  <ellipse cx="47.00" cy="23.00" rx="5.00" ry="5.00" fill="#cfe8e5"/>
+  <rect x="15.00" y="29.00" width="34.00" height="23.00" rx="2.50" fill="#ffffff"/>
+  <rect x="19.00" y="34.00" width="11.00" height="9.00" rx="1.50" fill="#8fc9c2"/>
+  <rect x="34.00" y="35.00" width="10.00" height="17.00" rx="1.50" fill="#0f5257"/>
+  <rect x="12.00" y="51.00" width="40.00" height="2.50" rx="1.20" fill="#ffffff"/>
 </svg>
