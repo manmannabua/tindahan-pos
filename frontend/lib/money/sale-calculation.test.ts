@@ -23,7 +23,7 @@ interface SaleCase {
   name: string;
   prices_include_tax: boolean;
   order_discount?: RawDiscount;
-  lines: { quantity: string; unit_price: string; tax_rate: string; tax_kind?: TaxKind; discount?: RawDiscount }[];
+  lines: { quantity: string; unit_price: string; tax_rate: string; tax_kind?: TaxKind; discount?: RawDiscount; statutory?: boolean }[];
   expected: { lines: Record<string, string>[]; totals: Record<string, string> };
 }
 interface PaymentCase {
@@ -52,6 +52,7 @@ describe("shared sale calculation vectors", () => {
           taxRate: l.tax_rate,
           taxKind: l.tax_kind ?? "VATABLE",
           discount: discount(l.discount),
+          statutory: l.statutory ?? false,
         })),
         { pricesIncludeTax: c.prices_include_tax, orderDiscount: discount(c.order_discount) },
       );

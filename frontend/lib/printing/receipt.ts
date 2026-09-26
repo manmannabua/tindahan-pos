@@ -4,8 +4,9 @@
  * Both renderers (HTML/browser print now, ESC/POS later) consume the same laid-out lines, so a
  * 58 mm (32 columns) and an 80 mm (48 columns) receipt break lines identically everywhere.
  */
+import type { DeviceBir } from "@/lib/db/meta";
 import type { LocalBranch, LocalCompany, LocalPayment, LocalSale, LocalSaleItem } from "@/lib/db/schema";
-import { compare, formatMoney, toMoneyString } from "@/lib/money";
+import { compare, formatMoney, subtract, toMoneyString } from "@/lib/money";
 
 export type ReceiptWidth = 58 | 80;
 export const COLUMNS: Record<ReceiptWidth, number> = { 58: 32, 80: 48 };
@@ -32,21 +33,38 @@ export interface BuildReceiptArgs {
   branch: LocalBranch;
   terminalCode: string;
   width: ReceiptWidth;
+  deviceBir?: DeviceBir | null;
   isReprint?: boolean;
 }
 
-export function buildReceipt(args: BuildReceiptArgs): ReceiptDocument {
-  const { sale, items, payments, company, branch } = args;
+/**
+ * BIR header: registered name, business name, branch address, VAT/NON-VAT REG TIN and the
+ * terminal's MIN / serial number / PTU. Shared by receipts, return slips and readings.
+ */
+export function birHeaderLines(company: LocalCompany, branch: LocalBranch, deviceBir?: DeviceBir | null): ReceiptLine[] {
   const lines: ReceiptLine[] = [];
   lines.push({ kind: "center", text: company.legalName ?? company.name, bold: true });
   if (company.legalName && company.legalName !== company.name) lines.push({ kind: "center", text: company.name });
   lines.push({ kind: "center", text: branch.name });
   if (branch.address) lines.push({ kind: "center", text: branch.address });
   const tin = branch.tin ?? company.tin;
-  if (tin) lines.push({ kind: "center", text: `TIN ${tin}` });
+  if (tin) lines.push({ kind: "center", text: `${company.vatRegistered === false ? "NON-VAT REG TIN" : "VAT REG TIN"}: ${tin}` });
+  if (deviceBir?.min) lines.push({ kind: "center", text: `MIN: ${deviceBir.min}` });
+  if (deviceBir?.serialNumber) lines.push({ kind: "center", text: `SN: ${deviceBir.serialNumber}` });
+  if (deviceBir?.ptuNumber) {
+    const date = deviceBir.ptuIssuedOn ? ` (${deviceBir.ptuIssuedOn})` : "";
+    lines.push({ kind: "center", text: `PTU No.: ${deviceBir.ptuNumber}${date}` });
+  }
+  if (company.birAccreditationNo) lines.push({ kind: "center", text: `Accr. No.: ${company.birAccreditationNo}` });
   for (const header of (branch.receiptHeader ?? "").split("\n").filter(Boolean)) {
     lines.push({ kind: "center", text: header });
   }
+  return lines;
+}
+
+export function buildReceipt(args: BuildReceiptArgs): ReceiptDocument {
+  const { sale, items, payments, company, branch } = args;
+  const lines: ReceiptLine[] = birHeaderLines(company, branch, args.deviceBir);
   if (args.isReprint) lines.push({ kind: "center", text: "*** REPRINT ***", bold: true });
   if (sale.status === "VOIDED") lines.push({ kind: "center", text: "*** VOIDED ***", bold: true });
   lines.push({ kind: "rule" });
@@ -58,7 +76,7 @@ export function buildReceipt(args: BuildReceiptArgs): ReceiptDocument {
 
   for (const item of [...items].sort((a, b) => a.lineNo - b.lineNo)) {
     const name = item.variantName ? `${item.productName} ${item.variantName}` : item.productName;
-    lines.push({ kind: "text", text: name });
+    lines.push({ kind: "text", text: item.statutory ? `${name} (SC/PWD)` : name });
     lines.push({
       kind: "pair",
       left: `  ${item.quantity} ${item.unitCode} x ${money(item.unitPrice)}`,
@@ -68,9 +86,16 @@ export function buildReceipt(args: BuildReceiptArgs): ReceiptDocument {
       lines.push({ kind: "pair", left: "  Discount", right: `-${money(item.lineDiscount)}` });
     }
   }
+  const vatExemption = sale.vatExemptionTotal ?? "0.00";
+  const statutoryDiscount = sale.statutoryDiscountTotal ?? "0.00";
+  const regularDiscount = subtract(sale.discountTotal, statutoryDiscount);
   lines.push({ kind: "rule" });
   lines.push({ kind: "pair", left: "Subtotal", right: money(sale.grossTotal) });
-  if (compare(sale.discountTotal, "0") > 0) lines.push({ kind: "pair", left: "Discount", right: `-${money(sale.discountTotal)}` });
+  if (compare(vatExemption, "0") > 0) lines.push({ kind: "pair", left: "Less: VAT exemption", right: `-${money(vatExemption)}` });
+  if (compare(statutoryDiscount, "0") > 0) {
+    lines.push({ kind: "pair", left: "Less: 20% SC/PWD discount", right: `-${money(statutoryDiscount)}` });
+  }
+  if (compare(regularDiscount, "0") > 0) lines.push({ kind: "pair", left: "Discount", right: `-${money(toMoneyString(regularDiscount))}` });
   if (!sale.pricesIncludeTax) lines.push({ kind: "pair", left: "VAT", right: money(sale.taxTotal) });
   lines.push({ kind: "pair", left: "TOTAL", right: formatMoney(sale.total, company.currency), bold: true });
   lines.push({ kind: "rule" });
@@ -84,6 +109,15 @@ export function buildReceipt(args: BuildReceiptArgs): ReceiptDocument {
   lines.push({ kind: "pair", left: "VAT amount", right: money(sale.vatAmount) });
   lines.push({ kind: "pair", left: "VAT-exempt sales", right: money(sale.exemptSales) });
   lines.push({ kind: "pair", left: "Zero-rated sales", right: money(sale.zeroRatedSales) });
+  if (sale.statutory) {
+    lines.push({ kind: "rule" });
+    lines.push({ kind: "text", text: sale.statutory.kind === "SENIOR" ? "SENIOR CITIZEN DISCOUNT" : "PWD DISCOUNT" });
+    lines.push({ kind: "pair", left: "Name", right: sale.statutory.holderName });
+    lines.push({ kind: "pair", left: sale.statutory.kind === "SENIOR" ? "OSCA/SC ID" : "PWD ID", right: sale.statutory.idNumber });
+    if (sale.statutory.holderTin) lines.push({ kind: "pair", left: "TIN", right: sale.statutory.holderTin });
+    lines.push({ kind: "text", text: "" });
+    lines.push({ kind: "pair", left: "Signature:", right: "_".repeat(20) });
+  }
   lines.push({ kind: "rule" });
   for (const footer of (branch.receiptFooter ?? "Thank you!").split("\n").filter(Boolean)) {
     lines.push({ kind: "center", text: footer });

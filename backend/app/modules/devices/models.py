@@ -1,8 +1,8 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from enum import StrEnum
 
-from sqlalchemy import CheckConstraint, ForeignKey, Index, Integer, String, Text, text
+from sqlalchemy import CheckConstraint, Date, ForeignKey, Index, Integer, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.modules.branches.models import Branch
@@ -52,6 +52,12 @@ class Device(UUIDPrimaryKeyMixin, CompanyScopedMixin, TimestampMixin, SyncTracke
     registered_at: Mapped[datetime]
     revoked_at: Mapped[datetime | None]
     revoked_by_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+
+    # BIR registration of this terminal (printed on receipts and readings).
+    bir_min: Mapped[str | None] = mapped_column(String(32))  # Machine Identification Number
+    bir_serial_number: Mapped[str | None] = mapped_column(String(64))
+    bir_ptu_number: Mapped[str | None] = mapped_column(String(64))  # Permit to Use
+    bir_ptu_issued_on: Mapped[date | None] = mapped_column(Date)
 
     last_seen_at: Mapped[datetime | None]
     last_sync_at: Mapped[datetime | None]

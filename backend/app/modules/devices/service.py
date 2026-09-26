@@ -23,7 +23,7 @@ from app.modules.audit.service import AuditActor
 from app.modules.auth.principal import Principal
 from app.modules.branches.models import Branch
 from app.modules.devices.models import Device, DeviceStatus
-from app.modules.devices.schemas import DeviceRegisterRequest
+from app.modules.devices.schemas import DeviceRegisterRequest, DeviceUpdate
 from app.modules.users.permissions import P
 from app.shared.exceptions import (
     AuthenticationError,
@@ -31,6 +31,7 @@ from app.shared.exceptions import (
     ConflictError,
     NotFoundError,
 )
+from app.shared.patch import apply_patch
 
 
 def _challenge_key(device_id: uuid.UUID, nonce: str) -> str:
@@ -175,3 +176,31 @@ async def issue_device_token(
     device.last_seen_at = datetime.now(UTC)
     await db.commit()
     return device, token, ttl
+
+
+async def update_device(
+    db: AsyncSession,
+    principal: Principal,
+    device_id: uuid.UUID,
+    data: DeviceUpdate,
+    actor: AuditActor,
+) -> Device:
+    device = await get_device(db, principal.company_id, device_id)
+    principal.require(P.DEVICES_MANAGE, device.branch_id)
+    changes = apply_patch(
+        device,
+        data.model_dump(exclude_unset=True),
+        {"bir_min", "bir_serial_number", "bir_ptu_number", "bir_ptu_issued_on"},
+    )
+    audit.record(
+        db,
+        actor,
+        "device.updated",
+        entity_type="device",
+        entity_id=device.id,
+        branch_id=device.branch_id,
+        changes=changes,
+    )
+    await db.commit()
+    await db.refresh(device)
+    return device

@@ -14,6 +14,7 @@ import { Pagination } from "@/components/shared/pagination";
 import { QueryError, TableSkeleton } from "@/components/shared/query-state";
 import { SearchInput } from "@/components/shared/search-input";
 import { ActiveBadge } from "@/components/shared/status-badge";
+import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -136,7 +137,10 @@ export default function ProductsPage() {
                     <TableCell className="text-right tabular-nums">{money(p.price)}</TableCell>
                     <TableCell className="hidden text-right tabular-nums sm:table-cell">{p.variant_count}</TableCell>
                     <TableCell>
-                      <ActiveBadge active={p.is_active} />
+                      <div className="flex flex-wrap gap-1">
+                        <ActiveBadge active={p.is_active} />
+                        {p.sc_pwd_eligible && <Badge variant="secondary">SC/PWD</Badge>}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

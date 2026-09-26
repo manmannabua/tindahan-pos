@@ -1,18 +1,24 @@
 "use client";
 
-import { PrinterIcon, Undo2Icon, XCircleIcon } from "lucide-react";
+import { PrinterIcon, SearchIcon, Undo2Icon, XCircleIcon } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { getDeviceClient } from "@/lib/device";
 import { useLiveQuery } from "@/hooks/use-live-query";
 import { getDb, type LocalSale } from "@/lib/db/schema";
 import { formatMoney } from "@/lib/money";
 import { loadReceipt } from "@/lib/pos/receipts";
-import { printReceipt } from "@/lib/printing/print";
+import { findSaleForReturn } from "@/lib/pos/sale-lookup";
+import { useTerminalStore } from "@/stores/terminal-store";
+
 import { usePosSession } from "@/stores/pos-session-store";
 
-import { ReturnDialog } from "./return-dialog";
+import { printWithFeedback } from "../print";
+import { ReturnDialog, type ReturnTarget } from "./return-dialog";
 import { VoidDialog } from "./void-dialog";
 
 const SYNC_TONE: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
@@ -33,17 +39,58 @@ export function SalesHistory() {
     new Set<string>(),
   );
   const [voiding, setVoiding] = useState<LocalSale | null>(null);
-  const [returning, setReturning] = useState<LocalSale | null>(null);
+  const [returning, setReturning] = useState<ReturnTarget | null>(null);
+  const [receiptQuery, setReceiptQuery] = useState("");
+  const [searching, setSearching] = useState(false);
+  const online = useTerminalStore((s) => s.connectivity) !== "offline";
   if (!context) return null;
 
   const reprint = async (saleId: string) => {
     const doc = await loadReceipt(getDb(), saleId, context, true);
-    if (doc) await printReceipt(doc);
+    if (doc) await printWithFeedback(doc, context);
+  };
+
+  const findReceipt = async () => {
+    if (!receiptQuery.trim()) return;
+    setSearching(true);
+    try {
+      const found = await findSaleForReturn(getDb(), receiptQuery, { online, client: getDeviceClient() });
+      if (found.kind === "local") {
+        setReturning({ saleId: found.sale.id, receiptNumber: found.sale.receiptNumber, remote: null });
+      } else if (found.kind === "remote") {
+        if (found.remote.status !== "COMPLETED") toast.error("That sale was voided; nothing to return");
+        else setReturning({ saleId: found.remote.saleId, receiptNumber: found.remote.receiptNumber, remote: found.remote });
+      } else if (found.kind === "not_found") {
+        toast.error(`No sale with receipt ${receiptQuery.trim()}`);
+      } else {
+        toast.error("Offline: only sales made on this terminal can be returned until the connection is back");
+      }
+    } finally {
+      setSearching(false);
+    }
   };
 
   return (
     <div className="mx-auto w-full max-w-4xl p-4">
       <h1 className="mb-3 text-xl font-semibold">Recent sales</h1>
+      <form
+        className="mb-3 flex gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void findReceipt();
+        }}
+      >
+        <Input
+          aria-label="Receipt number to return"
+          placeholder="Return by receipt no. (any terminal while online)"
+          value={receiptQuery}
+          onChange={(e) => setReceiptQuery(e.target.value)}
+          className="h-11"
+        />
+        <Button type="submit" variant="outline" className="h-11" disabled={searching}>
+          <SearchIcon /> Find
+        </Button>
+      </form>
       <ul className="divide-y rounded-xl border bg-background" aria-label="Recent sales">
         {sales.map((s) => {
           const completed = s.status === "COMPLETED";
@@ -66,7 +113,7 @@ export function SalesHistory() {
                 <Button size="icon-lg" variant="outline" aria-label={`Reprint ${s.receiptNumber}`} onClick={() => void reprint(s.id)}>
                   <PrinterIcon />
                 </Button>
-                <Button size="icon-lg" variant="outline" aria-label={`Return items of ${s.receiptNumber}`} disabled={!completed} onClick={() => setReturning(s)}>
+                <Button size="icon-lg" variant="outline" aria-label={`Return items of ${s.receiptNumber}`} disabled={!completed} onClick={() => setReturning({ saleId: s.id, receiptNumber: s.receiptNumber, remote: null })}>
                   <Undo2Icon />
                 </Button>
                 <Button size="icon-lg" variant="outline" aria-label={`Void ${s.receiptNumber}`} disabled={!canVoid} onClick={() => setVoiding(s)}>
@@ -79,7 +126,7 @@ export function SalesHistory() {
         {sales.length === 0 && <li className="px-4 py-8 text-center text-sm text-muted-foreground">No sales yet.</li>}
       </ul>
       <VoidDialog sale={voiding} onClose={() => setVoiding(null)} />
-      <ReturnDialog sale={returning} onClose={() => setReturning(null)} />
+      <ReturnDialog target={returning} onClose={() => setReturning(null)} />
     </div>
   );
 }

@@ -9,7 +9,7 @@
 import { v7 as uuidv7 } from "uuid";
 
 import type { SellableItem } from "@/lib/db/catalog";
-import type { LocalDiscount } from "@/lib/db/schema";
+import type { LocalDiscount, LocalStatutory } from "@/lib/db/schema";
 import { add, compare, toQuantityString } from "@/lib/money";
 import {
   CalculationError,
@@ -73,9 +73,25 @@ export interface Cart {
   customerId: string | null;
   /** Display data for the selected customer (optional in older checkpoints). */
   customer?: CartCustomer | null;
+  /** Senior citizen / PWD holder: statutory discount on every eligible line. */
+  statutory?: LocalStatutory | null;
 }
 
-export const EMPTY_CART: Cart = { lines: [], orderDiscount: null, customerId: null, customer: null };
+export const EMPTY_CART: Cart = { lines: [], orderDiscount: null, customerId: null, customer: null, statutory: null };
+
+/** The senior citizen / PWD discount applies to this line (holder captured + eligible product). */
+export function isStatutoryLine(cart: Cart, line: CartLine): boolean {
+  return Boolean(cart.statutory) && line.item.scPwdEligible === true;
+}
+
+/** Discount sent for a line: none on statutory lines (no double discounts), else manual/promo. */
+export function lineDiscountFor(cart: Cart, line: CartLine): LocalDiscount | null {
+  return isStatutoryLine(cart, line) ? null : effectiveDiscount(line);
+}
+
+export function setStatutory(cart: Cart, statutory: LocalStatutory | null): Cart {
+  return { ...cart, statutory };
+}
 
 export function unitPrice(line: CartLine): string | null {
   return line.override?.price ?? line.listPrice;
@@ -168,7 +184,7 @@ export function applyPromotions(cart: Cart, promo: PromoContext | null, now: Dat
   const applied = evaluatePromotions(
     cart.lines.flatMap((l) => {
       const price = unitPrice(l);
-      if (price === null || l.promotionsDisabled) return [];
+      if (price === null || l.promotionsDisabled || isStatutoryLine(cart, l)) return [];
       return [
         {
           lineId: l.id,
@@ -215,7 +231,8 @@ export function calculateCart(cart: Cart, pricesIncludeTax: boolean): CartTotals
           unitPrice: unitPrice(l) ?? "0",
           taxRate: l.item.taxRate,
           taxKind: l.item.taxKind,
-          discount: effectiveDiscount(l),
+          discount: lineDiscountFor(cart, l),
+          statutory: isStatutoryLine(cart, l),
         })),
         { pricesIncludeTax, orderDiscount: cart.orderDiscount },
       ),

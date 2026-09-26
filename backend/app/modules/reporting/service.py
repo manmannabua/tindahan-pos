@@ -41,6 +41,7 @@ from app.modules.returns.models import ReturnItem, SaleReturn
 from app.modules.sales.models import Sale, SaleItem, SaleStatus
 from app.modules.suppliers.models import Supplier
 from app.modules.users.models import User
+from app.shared.exceptions import BusinessRuleError
 
 ZERO = Decimal(0)
 CENT = Decimal("0.01")
@@ -111,6 +112,8 @@ async def sales_summary(db: AsyncSession, scope: Scope) -> Row:
                 func.coalesce(func.sum(Sale.discount_total), 0).label("discounts"),
                 func.coalesce(func.sum(Sale.total), 0).label("sales"),
                 func.coalesce(func.sum(Sale.tax_total), 0).label("tax"),
+                func.coalesce(func.sum(Sale.statutory_discount_total), 0).label("statutory"),
+                func.coalesce(func.sum(Sale.vat_exemption_total), 0).label("vat_exemption"),
             ).where(*_completed_sales(scope))
         )
     ).one()
@@ -168,6 +171,8 @@ async def sales_summary(db: AsyncSession, scope: Scope) -> Row:
         "transactions": transactions,
         "gross_sales": _d(sales.gross_sales),
         "discounts": _d(sales.discounts),
+        "sc_pwd_discounts": _d(sales.statutory),
+        "vat_exemptions": _d(sales.vat_exemption),
         "sales": _d(sales.sales),
         "tax": _d(sales.tax),
         "returns_count": int(returns.returns_count),
@@ -639,3 +644,130 @@ async def voids_report(db: AsyncSession, scope: Scope) -> list[Row]:
         )
         .order_by(Sale.voided_at.desc()),
     )
+
+
+# --- BIR ---------------------------------------------------------------------------------
+
+
+async def sc_pwd_book(db: AsyncSession, scope: Scope) -> list[Row]:
+    """Senior citizen / PWD sales book: one row per sale with a statutory discount."""
+    statutory_lines = (
+        select(
+            SaleItem.sale_id,
+            func.sum(SaleItem.gross).label("gross"),
+            func.sum(SaleItem.total).label("net"),
+        )
+        .where(SaleItem.statutory.is_(True))
+        .group_by(SaleItem.sale_id)
+        .subquery()
+    )
+    return await _rows(
+        db,
+        select(
+            Sale.occurred_at,
+            Sale.receipt_number,
+            Sale.statutory_kind.label("kind"),
+            Sale.statutory_holder_name.label("holder_name"),
+            Sale.statutory_id_number.label("id_number"),
+            Sale.statutory_holder_tin.label("holder_tin"),
+            statutory_lines.c.gross,
+            Sale.vat_exemption_total.label("vat_exemption"),
+            Sale.statutory_discount_total.label("discount"),
+            statutory_lines.c.net,
+        )
+        .join(statutory_lines, statutory_lines.c.sale_id == Sale.id)
+        .where(*_completed_sales(scope), Sale.statutory_kind.is_not(None))
+        .order_by(Sale.occurred_at),
+    )
+
+
+async def terminal_reading(db: AsyncSession, scope: Scope, device_id: uuid.UUID | None) -> Row:
+    """X/Z reading of one terminal for the period (BIR-style end-of-day report).
+
+    The accumulated grand totals are running sums of completed sales since the terminal's first
+    sale; they never reset, which is what makes them useful for audits.
+    """
+    if device_id is None:
+        raise BusinessRuleError("device_id is required", code="report.device_required")
+    in_period = [
+        Sale.company_id == scope.company_id,
+        Sale.device_id == device_id,
+        Sale.occurred_at >= scope.period.start,
+        Sale.occurred_at < scope.period.end,
+    ]
+    completed = [*in_period, Sale.status == SaleStatus.COMPLETED]
+    totals = (
+        await db.execute(
+            select(
+                func.count(Sale.id).label("transactions"),
+                func.min(Sale.receipt_number).label("first_receipt"),
+                func.max(Sale.receipt_number).label("last_receipt"),
+                func.coalesce(func.sum(Sale.gross_total), 0).label("gross_sales"),
+                func.coalesce(
+                    func.sum(Sale.line_discount_total + Sale.order_discount_total), 0
+                ).label("regular_discounts"),
+                func.coalesce(func.sum(Sale.statutory_discount_total), 0).label("sc_pwd_discounts"),
+                func.coalesce(func.sum(Sale.vat_exemption_total), 0).label("vat_exemptions"),
+                func.coalesce(func.sum(Sale.total), 0).label("net_sales"),
+                func.coalesce(func.sum(Sale.vatable_sales), 0).label("vatable_sales"),
+                func.coalesce(func.sum(Sale.vat_amount), 0).label("vat_amount"),
+                func.coalesce(func.sum(Sale.exempt_sales), 0).label("vat_exempt_sales"),
+                func.coalesce(func.sum(Sale.zero_rated_sales), 0).label("zero_rated_sales"),
+            ).where(*completed)
+        )
+    ).one()
+    voids = (
+        await db.execute(
+            select(func.count(Sale.id), func.coalesce(func.sum(Sale.total), 0)).where(
+                *in_period, Sale.status == SaleStatus.VOIDED
+            )
+        )
+    ).one()
+    refunds = await db.scalar(
+        select(func.coalesce(func.sum(SaleReturn.refund_total), 0)).where(
+            SaleReturn.company_id == scope.company_id,
+            SaleReturn.device_id == device_id,
+            SaleReturn.occurred_at >= scope.period.start,
+            SaleReturn.occurred_at < scope.period.end,
+        )
+    )
+    payments = await _rows(
+        db,
+        select(Payment.method_kind, func.sum(Payment.amount).label("amount"))
+        .join(Sale, Sale.id == Payment.sale_id)
+        .where(*completed, Payment.status == PaymentStatus.CAPTURED)
+        .group_by(Payment.method_kind)
+        .order_by(Payment.method_kind),
+    )
+
+    def grand_total(before: Any) -> Any:
+        return select(func.coalesce(func.sum(Sale.total), 0)).where(
+            Sale.company_id == scope.company_id,
+            Sale.device_id == device_id,
+            Sale.status == SaleStatus.COMPLETED,
+            Sale.occurred_at < before,
+        )
+
+    old_grand = _d(await db.scalar(grand_total(scope.period.start)))
+    new_grand = _d(await db.scalar(grand_total(scope.period.end)))
+    return {
+        "device_id": str(device_id),
+        "transactions": int(totals.transactions),
+        "first_receipt": totals.first_receipt,
+        "last_receipt": totals.last_receipt,
+        "gross_sales": _d(totals.gross_sales),
+        "regular_discounts": _d(totals.regular_discounts),
+        "sc_pwd_discounts": _d(totals.sc_pwd_discounts),
+        "vat_exemptions": _d(totals.vat_exemptions),
+        "returns": _d(refunds),
+        "voids_count": int(voids[0]),
+        "voids_amount": _d(voids[1]),
+        "net_sales": _d(totals.net_sales),
+        "vatable_sales": _d(totals.vatable_sales),
+        "vat_amount": _d(totals.vat_amount),
+        "vat_exempt_sales": _d(totals.vat_exempt_sales),
+        "zero_rated_sales": _d(totals.zero_rated_sales),
+        "payments": payments,
+        "old_accumulated_grand_total": old_grand,
+        "new_accumulated_grand_total": new_grand,
+    }

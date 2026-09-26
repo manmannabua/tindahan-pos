@@ -60,6 +60,8 @@ class Product(UUIDPrimaryKeyMixin, CompanyScopedMixin, TimestampMixin, SyncTrack
     tax_rate_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tax_rates.id"))
     # False for services / non-stock items: no inventory movements are posted.
     track_inventory: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
+    # Qualifies for the senior citizen / PWD discount (RA 9994 / RA 10754), e.g. medicines.
+    sc_pwd_eligible: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
     image_url: Mapped[str | None] = mapped_column(String(500))
     is_active: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
 

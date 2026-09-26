@@ -47,7 +47,7 @@ export interface SeededCompany {
 }
 
 export async function seedCompany(options: {
-  products: { name: string; price: string; stock: string }[];
+  products: { name: string; price: string; stock: string; scPwdEligible?: boolean }[];
 }): Promise<SeededCompany> {
   const code = `E2E${Date.now().toString(36).toUpperCase().slice(-5)}${Math.floor(Math.random() * 100)}`;
   const email = `owner-${code.toLowerCase()}@example.com`;
@@ -81,6 +81,7 @@ export async function seedCompany(options: {
       body: {
         name: p.name,
         base_unit_id: pc,
+        ...(p.scPwdEligible ? { sc_pwd_eligible: true } : {}),
         variants: [{ cost: "10.0000", barcodes: [{ code: barcode, is_primary: true }], prices: [{ price: p.price }] }],
       },
     });

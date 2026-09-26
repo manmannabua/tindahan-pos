@@ -7,7 +7,7 @@ import { StatCard } from "@/components/shared/stat-card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
-import { formatCell, present } from "../present";
+import { type Column, formatCell, present } from "../present";
 
 /** Renders any report payload: KPI cards for summaries, a table for lists. */
 export function ReportView({ data }: { data: unknown }) {
@@ -15,13 +15,30 @@ export function ReportView({ data }: { data: unknown }) {
   if (p.type === "empty") return <EmptyState icon={BarChart3Icon} title="No data for this period" />;
   if (p.type === "kpis") {
     return (
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {p.items.map((item) => (
-          <StatCard key={item.key} label={item.label} value={item.value} />
+      <div className="space-y-6">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {p.items.map((item) => (
+            <StatCard key={item.key} label={item.label} value={item.value} />
+          ))}
+        </div>
+        {p.nested.map((n) => (
+          <section key={n.key} className="space-y-2">
+            <h2 className="text-sm font-medium">{n.label}</h2>
+            {n.presentation.type === "table" ? (
+              <ReportTable columns={n.presentation.columns} rows={n.presentation.rows} />
+            ) : (
+              <p className="text-sm text-muted-foreground">None</p>
+            )}
+          </section>
         ))}
       </div>
     );
   }
+  return <ReportTable columns={p.columns} rows={p.rows} />;
+}
+
+function ReportTable({ columns, rows }: { columns: Column[]; rows: Record<string, unknown>[] }) {
+  const p = { columns, rows };
   return (
     <div className="overflow-x-auto rounded-xl border">
       <Table>

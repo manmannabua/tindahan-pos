@@ -1,7 +1,7 @@
 "use client";
 
 import { SettingsIcon, ShieldCheckIcon } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,9 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { DEFAULT_SETTINGS, saveTerminalSettings, type TerminalSettings } from "@/lib/db/meta";
 import { getDb } from "@/lib/db/schema";
+import { buildReceiptSample } from "@/lib/printing/sample";
+import { forgetPrinters, isSupported, pairedPrinter, pairPrinter, type EscPosMode } from "@/lib/printing/escpos-transport";
+import { openCashDrawer, printDocument, type PrinterMode } from "@/lib/printing/output";
 import { usePosSession } from "@/stores/pos-session-store";
 
 import { requestAuthorization } from "../manager-auth";
@@ -83,6 +86,8 @@ function SettingsForm({ initial }: { initial: TerminalSettings }) {
         </div>
       </fieldset>
 
+      <PrinterSection settings={s} onModeChange={(mode) => set("printerMode", mode)} onBaudChange={(v) => set("serialBaudRate", v)} />
+
       <Toggle id="auto-print" label="Print receipt automatically after each sale" checked={s.printReceiptAutomatically} onChange={(v) => set("printReceiptAutomatically", v)} />
       <Toggle id="sound" label="Scan sounds" checked={s.scannerSound} onChange={(v) => set("scannerSound", v)} />
       <Toggle id="stock-warning" label="Warn when selling more than local stock" checked={s.warnOnNegativeStock} onChange={(v) => set("warnOnNegativeStock", v)} />
@@ -122,5 +127,103 @@ function NumberField({ id, label, value, onChange }: { id: string; label: string
       </Label>
       <Input id={id} inputMode="numeric" className="h-10" value={String(value)} onChange={(e) => onChange(Number(e.target.value.replace(/\D/g, "")))} />
     </div>
+  );
+}
+
+const PRINTER_MODES: { mode: PrinterMode; label: string }[] = [
+  { mode: "browser", label: "Browser (any printer)" },
+  { mode: "escpos-usb", label: "ESC/POS USB" },
+  { mode: "escpos-serial", label: "ESC/POS serial" },
+];
+
+function PrinterSection({
+  settings,
+  onModeChange,
+  onBaudChange,
+}: {
+  settings: TerminalSettings;
+  onModeChange: (mode: PrinterMode) => void;
+  onBaudChange: (baud: number) => void;
+}) {
+  const mode = settings.printerMode;
+  const escpos = mode === "browser" ? null : (mode as EscPosMode);
+  const [paired, setPaired] = useState<string | null>(null);
+  const [version, setVersion] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    void (escpos ? pairedPrinter(escpos) : Promise.resolve(null)).then((name) => {
+      if (!cancelled) setPaired(name);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [escpos, version]);
+
+  const run = async (action: () => Promise<unknown>, success: string) => {
+    try {
+      await action();
+      toast.success(success);
+      setVersion((v) => v + 1);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+    }
+  };
+
+  return (
+    <fieldset className="space-y-2">
+      <legend className="text-sm font-medium">Receipt printer</legend>
+      <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Receipt printer">
+        {PRINTER_MODES.map((m) => (
+          <Button key={m.mode} type="button" variant={mode === m.mode ? "default" : "outline"} onClick={() => onModeChange(m.mode)}>
+            {m.label}
+          </Button>
+        ))}
+      </div>
+      {escpos && !isSupported(escpos) && (
+        <p className="text-sm text-destructive">This browser can&apos;t reach printers directly (Chrome or Edge on desktop/Android can). Receipts will print through the browser.</p>
+      )}
+      {escpos && isSupported(escpos) && (
+        <div className="space-y-2 rounded-lg border p-3">
+          <p className="text-sm">{paired ? `Paired: ${paired}` : "No printer paired yet."}</p>
+          {escpos === "escpos-serial" && (
+            <NumberField id="baud" label="Baud rate" value={settings.serialBaudRate} onChange={onBaudChange} />
+          )}
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="outline" onClick={() => void run(() => pairPrinter(escpos), "Printer paired")}>
+              Pair printer
+            </Button>
+            <Button type="button" variant="outline" disabled={!paired} onClick={() => void run(() => forgetPrinters(escpos), "Printer forgotten")}>
+              Forget
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!paired}
+              onClick={() =>
+                void run(async () => {
+                  const outcome = await printDocument(buildReceiptSample(settings.receiptWidth), settings);
+                  if (outcome.fallbackReason) throw new Error(outcome.fallbackReason);
+                }, "Test page sent")
+              }
+            >
+              Test print
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!paired}
+              onClick={() =>
+                void run(async () => {
+                  if (!(await openCashDrawer(settings))) throw new Error("The drawer did not respond");
+                }, "Drawer opened")
+              }
+            >
+              Open drawer
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">Save settings after changing the printer type. The drawer opens with cash payments.</p>
+        </div>
+      )}
+    </fieldset>
   );
 }

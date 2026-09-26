@@ -20,5 +20,8 @@ class Company(UUIDPrimaryKeyMixin, TimestampMixin, SyncTrackedMixin, Base):
     currency: Mapped[str] = mapped_column(String(3), server_default="PHP")
     timezone: Mapped[str] = mapped_column(String(64), server_default="Asia/Manila")
     prices_include_tax: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
+    # BIR: receipts say "VAT REG TIN" or "NON-VAT REG TIN".
+    vat_registered: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
+    bir_accreditation_no: Mapped[str | None] = mapped_column(String(64))
     settings: Mapped[dict[str, Any]] = mapped_column(JSONB, server_default=text("'{}'::jsonb"))
     is_active: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))

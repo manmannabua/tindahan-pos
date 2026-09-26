@@ -81,6 +81,15 @@ class Sale(UUIDPrimaryKeyMixin, CompanyScopedMixin, SyncTrackedMixin, Base):
     exempt_sales: Mapped[Decimal] = mapped_column(Money)
     zero_rated_sales: Mapped[Decimal] = mapped_column(Money)
 
+    # Senior citizen / PWD (RA 9994 / RA 10754): holder details are required on the receipt and
+    # in the BIR senior citizen / PWD sales book.
+    statutory_kind: Mapped[str | None] = mapped_column(String(8))  # SENIOR | PWD
+    statutory_id_number: Mapped[str | None] = mapped_column(String(64))
+    statutory_holder_name: Mapped[str | None] = mapped_column(String(200))
+    statutory_holder_tin: Mapped[str | None] = mapped_column(String(32))
+    vat_exemption_total: Mapped[Decimal] = mapped_column(Money, server_default=text("0"))
+    statutory_discount_total: Mapped[Decimal] = mapped_column(Money, server_default=text("0"))
+
     order_discount_kind: Mapped[str | None] = mapped_column(String(16))
     order_discount_value: Mapped[Decimal | None] = mapped_column(Money)
     order_discount_reason: Mapped[str | None] = mapped_column(String(200))
@@ -134,6 +143,9 @@ class SaleItem(UUIDPrimaryKeyMixin, CompanyScopedMixin, Base):
     discount_reason: Mapped[str | None] = mapped_column(String(200))
     discount_authorized_by_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
     promotion_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("promotions.id"))
+    statutory: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
+    vat_exemption: Mapped[Decimal] = mapped_column(Money, server_default=text("0"))
+    statutory_discount: Mapped[Decimal] = mapped_column(Money, server_default=text("0"))
 
     gross: Mapped[Decimal] = mapped_column(Money)
     line_discount: Mapped[Decimal] = mapped_column(Money)

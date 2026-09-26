@@ -193,6 +193,7 @@ async def create_product(
         base_unit_id=data.base_unit_id,
         tax_rate_id=tax_rate_id,
         track_inventory=data.track_inventory,
+        sc_pwd_eligible=data.sc_pwd_eligible,
         image_url=data.image_url,
     )
     db.add(product)

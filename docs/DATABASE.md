@@ -157,6 +157,13 @@ closed_at, counted_cash, expected_cash, over_short, status ('OPEN'|'CLOSED'), sy
 
 **cash_movements** (offline-origin) `id, cash_session_id, movement_type ('CASH_IN'|'CASH_OUT'|'PICKUP'), amount, reason, user_id, occurred_at`
 
+**Senior citizen / PWD & BIR columns** (migration `e1c3cb7b756c`): `products.sc_pwd_eligible`;
+`companies.vat_registered`, `companies.bir_accreditation_no`; `devices.bir_min`,
+`bir_serial_number`, `bir_ptu_number`, `bir_ptu_issued_on`; `sales.statutory_kind`
+(SENIOR|PWD), `statutory_id_number`, `statutory_holder_name`, `statutory_holder_tin`,
+`vat_exemption_total`, `statutory_discount_total`; `sale_items.statutory`, `vat_exemption`,
+`statutory_discount`.
+
 **sales** (offline-origin)
 `id, company_id, branch_id, device_id, cash_session_id, receipt_number, cashier_id, customer_id,
 price_level_id, status ('COMPLETED'|'VOIDED'), gross_total, discount_total, tax_total, total,

@@ -13,7 +13,8 @@ import { QueryError, TableSkeleton } from "@/components/shared/query-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useBranches } from "@/features/branches/api";
-import { CHARTS, POINT_IN_TIME, type ReportParams, useExportStatus, useReport, useReportCatalogue, useStartExport } from "@/features/reports/api";
+import { useDevices } from "@/features/devices/api";
+import { CHARTS, NEEDS_DEVICE, POINT_IN_TIME, type ReportParams, useExportStatus, useReport, useReportCatalogue, useStartExport } from "@/features/reports/api";
 import { ReportView } from "@/features/reports/components/report-view";
 import { SeriesChart } from "@/features/reports/components/series-chart";
 import { chartPoints } from "@/features/reports/present";
@@ -33,6 +34,9 @@ export default function ReportRunnerPage() {
   const [granularity, setGranularity] = useState<"day" | "week" | "month">("day");
   const [limit, setLimit] = useState("");
   const [exportId, setExportId] = useState<string | null>(null);
+  const needsDevice = NEEDS_DEVICE.has(name);
+  const { data: devices } = useDevices(needsDevice && branchId !== ALL ? branchId : null);
+  const [deviceId, setDeviceId] = useState("");
 
   const params: ReportParams = {
     date_from: POINT_IN_TIME.has(name) ? undefined : from,
@@ -40,8 +44,9 @@ export default function ReportRunnerPage() {
     branch_id: branchId === ALL ? undefined : branchId,
     granularity: name === "sales-trend" ? granularity : undefined,
     limit: Number.parseInt(limit, 10) || undefined,
+    device_id: needsDevice && deviceId ? deviceId : undefined,
   };
-  const { data, isPending, error, refetch, isFetching } = useReport(name, params);
+  const { data, isPending, error, refetch, isFetching } = useReport(name, params, !needsDevice || Boolean(deviceId));
   const startExport = useStartExport(name);
   const exportStatus = useExportStatus(exportId);
   const chart = CHARTS[name];
@@ -77,9 +82,11 @@ export default function ReportRunnerPage() {
               </Button>
             )}
             {exportStatus.data?.status === "FAILED" && <span className="text-sm text-destructive">Export failed</span>}
-            <Button variant="outline" onClick={onExport} disabled={startExport.isPending || exporting}>
-              {exporting ? <Loader2Icon className="animate-spin" /> : <DownloadIcon />} Export CSV
-            </Button>
+            {(!needsDevice || Boolean(deviceId)) && (
+              <Button variant="outline" onClick={onExport} disabled={startExport.isPending || exporting}>
+                {exporting ? <Loader2Icon className="animate-spin" /> : <DownloadIcon />} Export CSV
+              </Button>
+            )}
           </>
         }
       />
@@ -101,6 +108,16 @@ export default function ReportRunnerPage() {
           onChange={setBranchId}
           options={[{ value: ALL, label: "All branches" }, ...(branches ?? []).map((b) => ({ value: b.id, label: b.name }))]}
         />
+        {needsDevice && (
+          <SimpleSelect
+            aria-label="Terminal"
+            className="w-full lg:w-60"
+            value={deviceId}
+            onChange={setDeviceId}
+            placeholder="Choose a terminal"
+            options={(devices ?? []).map((d) => ({ value: d.id, label: `${d.terminal_code} · ${d.name}` }))}
+          />
+        )}
         {name === "sales-trend" && (
           <SimpleSelect
             aria-label="Granularity"
@@ -121,7 +138,9 @@ export default function ReportRunnerPage() {
         )}
         {isFetching && <Loader2Icon className="size-4 animate-spin text-muted-foreground" aria-label="Refreshing" />}
       </div>
-      {isPending ? (
+      {needsDevice && !deviceId ? (
+        <p className="text-sm text-muted-foreground">Choose a terminal to see its reading for the period.</p>
+      ) : isPending ? (
         <TableSkeleton />
       ) : error ? (
         <QueryError error={error} onRetry={() => void refetch()} />

@@ -173,16 +173,33 @@ Last updated: 2026-09-26
   verification, job payload purge); `scripts/benchmark_sync.py`; backup/restore scripts;
   frontend Dockerfile (dev + standalone runtime); nginx rules for `/serwist/`.
 
-**Current checks (all green):** backend `pytest` 131 · ruff · mypy strict. Frontend lint ·
-typecheck · 195 Vitest · build · **7/7 Playwright** (admin, catalog→PO→report export, offline
-20-sale critical test, two-terminal oversell, Phase 7 offline promo/customer/void/return, smoke).
+### Philippine compliance & printing ✅
+- **Senior citizen / PWD discount** (RA 9994 / RA 10754): VAT exemption + 20% on eligible lines
+  (`products.sc_pwd_eligible`), no stacking, holder details on sale + receipt, part of the shared
+  calculation contract (6 new vectors). Non-eligible statutory lines → `STATUTORY_DISCOUNT_REVIEW`.
+  Reports: `sc-pwd-book`, SC/PWD discounts and VAT exemptions in the sales summary.
+- **BIR fields**: company VAT/NON-VAT registration + accreditation no.; terminal MIN, serial,
+  PTU (admin device edit → delivered via `/sync/context`); BIR receipt header; server
+  `terminal-reading` (X/Z) report and POS X/Z readings from local data with a non-resettable
+  grand-total counter (Dexie v3).
+- **Cross-terminal returns**: `GET /sync/sales/lookup` (device token) with returned quantities and
+  exact refunded amounts; POS looks up locally first, then online.
+- **ESC/POS printing** (WebUSB / WebSerial) with drawer kick on cash payments, test print, falls
+  back to browser printing. Untested on real hardware.
+- Dev DB `pos` was reset (DEMO only).
+
+**Current checks (all green):** backend `pytest` 138 · ruff · mypy strict. Frontend lint ·
+typecheck · 227 Vitest · build · **8/8 Playwright** (admin, catalog→PO→report export, offline
+20-sale critical test, two-terminal oversell, Phase 7 offline promo/customer/void/return, offline
+SC sale + cross-terminal return, smoke).
 
 ## Next (suggested)
 1. Deploy a staging VM with `docker-compose.prod.yml` (never run yet: no Docker on the dev
    machine) — verify Nginx, TLS, Celery worker/beat with real Redis, service-worker update flow
    in a production build, and install the PWA on a real tablet + USB scanner + thermal printer.
-2. ESC/POS printing via WebUSB/WebSerial + cash-drawer kick; per-item stock page for deep links.
-3. PH-specific: senior citizen / PWD discount (20% + VAT exemption), BIR receipt requirements.
+2. Test ESC/POS printing + drawer kick on real printers; per-item stock page for deep links.
+3. PH-specific leftovers: senior-citizen 5% discount on basic necessities (DTI/DA rules), BIR
+   accreditation itself (a formal process, not code).
 4. Friendly messages for newer error codes in `frontend/lib/api/errors.ts`; SKU toggle on labels.
 5. Multi-item promotion bundles (needs a new evaluator version + vectors on both sides).
 6. `.xlsx` import/export (CSV UTF-8 works with Excel today).
@@ -225,14 +242,16 @@ typecheck · 195 Vitest · build · **7/7 Playwright** (admin, catalog→PO→re
   Smart App Control blocks the downloaded Chromium.
 - Dev DB `pos` contains leftover smoke/e2e/benchmark companies (codes `SMK…`, `E2E…`, `ADM…`,
   `BENCH…`); e2e runs need the backend started with `RATE_LIMIT_ENABLED=false`.
-- POS returns work only against sales stored on that terminal (no online lookup of other
-  terminals' sales yet); admin portal returns work for any sale.
+- Offline, POS returns work only against sales stored on that terminal; online they can use
+  any terminal's sale via `/sync/sales/lookup`.
 - Serwist uses native esbuild (esbuild-wasm failed on Windows paths); it currently runs under
   Smart App Control.
-- Nothing has been committed to git yet.
+- Playwright must run against `next dev`: in a production build the service worker fetches
+  API calls itself, bypassing Playwright's `page.route` offline blocking.
+- Repo: git@github.com:manmannabua/tindahan-pos.git (branch `main`).
 
 ## Pending migrations
-- None pending. Latest: `ff379da3c120` import jobs + trigram search. Revisions (in order): `ef8f6c10c69c` foundation, `1e3cfbdadecb` catalog and
+- None pending. Latest: `e1c3cb7b756c` SC/PWD discount + BIR fields (before it: `ff379da3c120` import jobs + trigram search). Revisions (in order): `ef8f6c10c69c` foundation, `1e3cfbdadecb` catalog and
   inventory ledger, `43cc34f6bf79` sales/payments/cash sessions/sync, `311a2c40e3d3` inventory
   documents, `34f69fa13fd1` suppliers and purchasing, `428f5d187452` customers/returns/
   promotions, `c5a1c4ea7bf5` expenses and report exports. Run `uv run alembic upgrade head`.

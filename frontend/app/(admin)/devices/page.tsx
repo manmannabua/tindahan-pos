@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useBranches, useBranchLabels } from "@/features/branches/api";
 import { useDevices } from "@/features/devices/api";
+import { DeviceEditDialog } from "@/features/devices/components/device-edit-dialog";
 import { RevokeDeviceDialog } from "@/features/devices/components/revoke-device-dialog";
 import { formatDateTime } from "@/lib/format";
 import type { Device } from "@/types/api";
@@ -24,6 +25,7 @@ export default function DevicesPage() {
   const branchLabels = useBranchLabels();
   const { data: devices, isPending, error, refetch } = useDevices(branchFilter === ALL ? null : branchFilter);
   const [revoking, setRevoking] = useState<Device | null>(null);
+  const [editing, setEditing] = useState<Device | null>(null);
 
   return (
     <>
@@ -61,7 +63,7 @@ export default function DevicesPage() {
                 <TableHead className="hidden lg:table-cell">Last sync</TableHead>
                 <TableHead className="w-24 text-right">Pending</TableHead>
                 <TableHead className="w-28">Status</TableHead>
-                <TableHead className="w-24" />
+                <TableHead className="w-40" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -72,6 +74,7 @@ export default function DevicesPage() {
                       <span className="font-mono">{device.terminal_code}</span> · {device.name}
                     </div>
                     <div className="max-w-64 truncate text-xs text-muted-foreground">
+                      {device.bir_min ? `MIN ${device.bir_min} · ` : "No BIR MIN · "}
                       {device.platform ?? "Unknown platform"}
                       {device.app_version && ` · v${device.app_version}`}
                     </div>
@@ -91,9 +94,14 @@ export default function DevicesPage() {
                   </TableCell>
                   <TableCell className="text-right">
                     {device.status === "ACTIVE" && (
-                      <Button variant="ghost" size="sm" onClick={() => setRevoking(device)}>
-                        Revoke
-                      </Button>
+                      <>
+                        <Button variant="ghost" size="sm" onClick={() => setEditing(device)}>
+                          Edit
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => setRevoking(device)}>
+                          Revoke
+                        </Button>
+                      </>
                     )}
                   </TableCell>
                 </TableRow>
@@ -102,6 +110,7 @@ export default function DevicesPage() {
           </Table>
         </div>
       )}
+      <DeviceEditDialog device={editing} onOpenChange={(open) => !open && setEditing(null)} />
       <RevokeDeviceDialog device={revoking} onOpenChange={(open) => !open && setRevoking(null)} />
     </>
   );

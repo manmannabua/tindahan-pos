@@ -44,6 +44,41 @@ def test_half_up_not_bankers_rounding() -> None:
     assert result.totals.total == D("0.13")
 
 
+def test_senior_citizen_hand_checked() -> None:
+    # 112.00 incl. 12% VAT → VAT-exclusive 100.00 → 20% = 20.00 → pays 80.00, VAT-exempt
+    result = calculate_sale(
+        [LineInput(D("1"), D("112.00"), D("12"), statutory=True)], prices_include_tax=True
+    )
+    line = result.lines[0]
+    assert (line.vat_exemption, line.statutory_discount, line.total) == (
+        D("12.00"),
+        D("20.00"),
+        D("80.00"),
+    )
+    assert result.totals.tax_total == D("0.00")
+    assert result.totals.exempt_sales == D("80.00")
+    # 3 x 33.33 = 99.99 → base round(89.276...) = 89.28, VAT 10.71, 20% = 17.86 → 71.42
+    rounding = calculate_sale(
+        [LineInput(D("3"), D("33.33"), D("12"), statutory=True)], prices_include_tax=True
+    )
+    assert rounding.totals.total == D("71.42")
+    assert rounding.totals.vat_exemption_total == D("10.71")
+
+
+def test_senior_citizen_line_excluded_from_order_discount() -> None:
+    result = calculate_sale(
+        [
+            LineInput(D("2"), D("56.00"), D("12"), statutory=True),
+            LineInput(D("1"), D("50.00"), D("12")),
+        ],
+        prices_include_tax=True,
+        order_discount=Discount(DiscountKind.PERCENT, D("10")),
+    )
+    assert result.totals.order_discount_total == D("5.00")  # 10% of the regular line only
+    assert result.lines[0].order_discount_share == D("0.00")
+    assert result.totals.total == D("125.00")  # 80.00 + 45.00
+
+
 def test_allocation_sums_exactly() -> None:
     assert allocate(D("10.00"), [D("10"), D("10"), D("10")]) == [D("3.34"), D("3.33"), D("3.33")]
     assert allocate(D("5.00"), [D("0"), D("0")]) == [D("0.00"), D("0.00")]
@@ -89,6 +124,7 @@ def test_shared_vectors_match_python() -> None:
                     D(line["tax_rate"]),
                     line.get("tax_kind", "VATABLE"),
                     _discount(line.get("discount")),
+                    line.get("statutory", False),
                 )
                 for line in case["lines"]
             ],

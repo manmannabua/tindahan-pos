@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import Field
 
@@ -33,6 +33,18 @@ class DeviceRead(ResponseSchema):
     last_seen_at: datetime | None
     last_sync_at: datetime | None
     pending_operations: int | None
+    bir_min: str | None
+    bir_serial_number: str | None
+    bir_ptu_number: str | None
+    bir_ptu_issued_on: date | None
+
+
+class DeviceUpdate(Schema):
+    name: str | None = Field(default=None, min_length=2, max_length=100)
+    bir_min: str | None = Field(default=None, max_length=32)
+    bir_serial_number: str | None = Field(default=None, max_length=64)
+    bir_ptu_number: str | None = Field(default=None, max_length=64)
+    bir_ptu_issued_on: date | None = None
 
 
 class DeviceChallengeResponse(ResponseSchema):

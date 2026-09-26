@@ -67,8 +67,15 @@ def _definition(name: str) -> Any:
     return definition
 
 
-def _options(granularity: str | None, limit: int | None) -> dict[str, Any]:
-    return {k: v for k, v in {"granularity": granularity, "limit": limit}.items() if v is not None}
+def _options(
+    granularity: str | None, limit: int | None, device_id: uuid.UUID | None = None
+) -> dict[str, Any]:
+    raw = {
+        "granularity": granularity,
+        "limit": limit,
+        "device_id": str(device_id) if device_id else None,
+    }
+    return {k: v for k, v in raw.items() if v is not None}
 
 
 @router.get("", response_model=list[ReportInfo], dependencies=_view)
@@ -89,6 +96,7 @@ async def run_report(
     branch_id: uuid.UUID | None = None,
     granularity: Literal["day", "week", "month"] | None = None,
     limit: Annotated[int | None, Query(ge=1, le=500)] = None,
+    device_id: uuid.UUID | None = None,
 ) -> ReportResult:
     definition = _definition(name)
     company = await db.get(Company, principal.company_id)
@@ -98,7 +106,7 @@ async def run_report(
     if branch_id and branch_scope is not None and branch_id not in branch_scope:
         principal.require(P.REPORTS_VIEW, branch_id)
     financial = principal.has_in_any_scope(P.REPORTS_FINANCIAL)
-    options = _options(granularity, limit)
+    options = _options(granularity, limit, device_id)
 
     key = cache_key(
         principal.company_id,
@@ -160,6 +168,7 @@ async def export_report(
     branch_id: uuid.UUID | None = None,
     granularity: Literal["day", "week", "month"] | None = None,
     limit: Annotated[int | None, Query(ge=1, le=5000)] = None,
+    device_id: uuid.UUID | None = None,
 ) -> ExportRead:
     """Queue a CSV export. Poll `GET /reports/exports/{id}`, then download it."""
     _definition(name)
@@ -177,7 +186,7 @@ async def export_report(
             "branch_id": str(branch_id) if branch_id else None,
             "branch_scope": sorted(map(str, branch_scope)) if branch_scope is not None else None,
             "financial": principal.has_in_any_scope(P.REPORTS_FINANCIAL),
-            "options": _options(granularity, limit),
+            "options": _options(granularity, limit, device_id),
         },
     )
     db.add(export)

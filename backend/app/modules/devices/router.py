@@ -18,6 +18,7 @@ from app.modules.devices.schemas import (
     DeviceRegisterRequest,
     DeviceTokenRequest,
     DeviceTokenResponse,
+    DeviceUpdate,
 )
 from app.modules.users.permissions import P
 
@@ -66,6 +67,25 @@ async def get_device(
     device_id: uuid.UUID, principal: CurrentPrincipal, db: DbSession
 ) -> DeviceRead:
     return DeviceRead.model_validate(await service.get_device(db, principal.company_id, device_id))
+
+
+@router.patch(
+    "/{device_id}",
+    response_model=DeviceRead,
+    dependencies=[Depends(require_permission(P.DEVICES_MANAGE))],
+)
+async def update_device(
+    device_id: uuid.UUID,
+    data: DeviceUpdate,
+    principal: CurrentPrincipal,
+    request: Request,
+    db: DbSession,
+) -> DeviceRead:
+    """Rename a terminal or record its BIR registration (MIN, serial number, PTU)."""
+    device = await service.update_device(
+        db, principal, device_id, data, audit_actor(principal, request)
+    )
+    return DeviceRead.model_validate(device)
 
 
 @router.post(

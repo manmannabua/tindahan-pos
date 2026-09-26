@@ -5,7 +5,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { add, compare, formatMoney, subtract, toQuantityString } from "@/lib/money";
-import { unitPrice, type CartLine } from "@/lib/pos/cart";
+import { isStatutoryLine, unitPrice, type CartLine } from "@/lib/pos/cart";
 import type { LineResult } from "@/lib/money/sale-calculation";
 import { cn } from "@/lib/utils";
 import { useCartStore } from "@/stores/cart-store";
@@ -46,6 +46,7 @@ function PromotionBadge({ line }: { line: CartLine }) {
 export function CartTable({ lineResults, currency }: { lineResults: LineResult[] | null; currency: string }) {
   const lines = useCartStore((s) => s.lines);
   const activeLineId = useCartStore((s) => s.activeLineId);
+  const statutory = useCartStore((s) => s.statutory ?? null);
   const [editing, setEditing] = useState<CartLine | null>(null);
 
   if (lines.length === 0) {
@@ -86,7 +87,16 @@ export function CartTable({ lineResults, currency }: { lineResults: LineResult[]
                   {result && compare(result.lineDiscount, "0") > 0 && ` · discount −${formatMoney(result.lineDiscount, currency)}`}
                 </div>
               </button>
-              <PromotionBadge line={line} />
+              {isStatutoryLine({ lines, orderDiscount: null, customerId: null, statutory }, line) ? (
+                <span
+                  data-testid="statutory-badge"
+                  className="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-800 dark:bg-sky-950 dark:text-sky-200"
+                >
+                  {statutory?.kind === "PWD" ? "PWD" : "SC"} 20% + VAT-exempt
+                </span>
+              ) : (
+                <PromotionBadge line={line} />
+              )}
               <div className="flex items-center gap-1">
                 <Button
                   size="icon-lg"

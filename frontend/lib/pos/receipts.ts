@@ -22,6 +22,7 @@ export async function loadReceipt(
     company: context.company,
     branch: context.branch,
     terminalCode: context.device.terminalCode,
+    deviceBir: context.deviceBir,
     width: context.settings.receiptWidth,
     isReprint,
   });

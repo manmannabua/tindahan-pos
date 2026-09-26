@@ -69,6 +69,14 @@ export async function applyContext(db: PosDatabase, context: SyncContext): Promi
       receiptPrefix: context.receipt_prefix,
       defaultStockLocationId: context.default_stock_location_id,
     });
+    if (context.device_bir) {
+      await setMeta(db, "deviceBir", {
+        min: context.device_bir.min,
+        serialNumber: context.device_bir.serial_number,
+        ptuNumber: context.device_bir.ptu_number,
+        ptuIssuedOn: context.device_bir.ptu_issued_on,
+      });
+    }
     const localSeq = (await getMeta(db, "receiptSeq")) ?? 0;
     await setMeta(db, "receiptSeq", Math.max(localSeq, context.last_receipt_seq));
   });

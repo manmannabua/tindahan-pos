@@ -112,6 +112,60 @@ CASES: list[dict[str, Any]] = [
     },
 ]
 
+# Senior citizen / PWD (RA 9994 / RA 10754): VAT exemption + 20% on the VAT-exclusive price.
+CASES += [
+    {
+        "name": "senior citizen, VAT-inclusive item",
+        "prices_include_tax": True,
+        "lines": [{"quantity": "1", "unit_price": "112.00", "tax_rate": "12", "statutory": True}],
+    },
+    {
+        "name": "senior citizen line mixed with a regular line and an order discount",
+        "prices_include_tax": True,
+        "order_discount": {"kind": "PERCENT", "value": "10"},
+        "lines": [
+            {"quantity": "2", "unit_price": "56.00", "tax_rate": "12", "statutory": True},
+            {"quantity": "1", "unit_price": "50.00", "tax_rate": "12"},
+        ],
+    },
+    {
+        "name": "PWD on a VAT-exempt item",
+        "prices_include_tax": True,
+        "lines": [
+            {
+                "quantity": "1",
+                "unit_price": "100.00",
+                "tax_rate": "0",
+                "tax_kind": "EXEMPT",
+                "statutory": True,
+            }
+        ],
+    },
+    {
+        "name": "statutory line ignores a manual discount",
+        "prices_include_tax": True,
+        "lines": [
+            {
+                "quantity": "1",
+                "unit_price": "112.00",
+                "tax_rate": "12",
+                "statutory": True,
+                "discount": {"kind": "PERCENT", "value": "50"},
+            }
+        ],
+    },
+    {
+        "name": "senior citizen with VAT-exclusive prices",
+        "prices_include_tax": False,
+        "lines": [{"quantity": "1", "unit_price": "100.00", "tax_rate": "12", "statutory": True}],
+    },
+    {
+        "name": "senior citizen rounding",
+        "prices_include_tax": True,
+        "lines": [{"quantity": "3", "unit_price": "33.33", "tax_rate": "12", "statutory": True}],
+    },
+]
+
 PAYMENT_CASES: list[dict[str, Any]] = [
     {
         "name": "exact cash",
@@ -157,6 +211,7 @@ def _line(raw: dict[str, Any]) -> LineInput:
         tax_rate=Decimal(raw["tax_rate"]),
         tax_kind=raw.get("tax_kind", "VATABLE"),
         discount=_discount(raw.get("discount")),
+        statutory=raw.get("statutory", False),
     )
 
 

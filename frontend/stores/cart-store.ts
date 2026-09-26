@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
 import type { SellableItem } from "@/lib/db/catalog";
-import type { LocalDiscount } from "@/lib/db/schema";
+import type { LocalDiscount, LocalStatutory } from "@/lib/db/schema";
 import {
   addItem,
   applyPromotions,
@@ -13,6 +13,7 @@ import {
   setLineDiscount,
   setOrderDiscount,
   setPromotionsDisabled,
+  setStatutory,
   setQuantity,
   type Cart,
   type CartCustomer,
@@ -37,6 +38,8 @@ interface CartState extends Cart {
   setOrderDiscount: (discount: LocalDiscount | null) => void;
   /** Select a customer; their price level (if any) re-prices the cart. */
   setCustomer: (customer: CartCustomer | null) => void;
+  /** Senior citizen / PWD holder (null removes the statutory discount). */
+  setStatutory: (statutory: LocalStatutory | null) => void;
   replace: (cart: Cart) => void;
   clear: () => void;
 }
@@ -85,6 +88,7 @@ export const useCartStore = create<CartState>()((set) => ({
       const ctx = { ...base, priceLevelId: customer?.priceLevelId ?? base.defaultPriceLevelId };
       return { ...withPromos(s, repriceAll(setCustomer(s, customer), ctx)), priceContext: ctx };
     }),
+  setStatutory: (statutory) => set((s) => withPromos(s, setStatutory(cartSnapshot(s), statutory))),
   replace: (cart) =>
     set((s) => {
       const base = s.priceContext;
@@ -105,5 +109,6 @@ export function cartSnapshot(state: Cart): Cart {
     orderDiscount: state.orderDiscount,
     customerId: state.customerId,
     customer: state.customer ?? null,
+    statutory: state.statutory ?? null,
   };
 }

@@ -4,6 +4,11 @@
  * A *contract* with the server (backend/app/modules/sales/calculation.py): both implementations
  * run `shared/test-vectors/sale_calculation.json`. Change the algorithm only together with the
  * Python code and the vectors. All amounts round HALF_UP to 2 decimals at each named step.
+ *
+ * Senior citizen / PWD lines (`statutory: true`, RA 9994 / RA 10754) remove VAT, then take 20%
+ * off the VAT-exclusive price; they get no other line or order discount and are VAT-exempt.
+ * Invariant per line: total = gross - lineDiscount - orderDiscountShare - vatExemption -
+ * statutoryDiscount (+ taxAmount when prices exclude tax).
  */
 import type { Big } from "big.js";
 
@@ -31,6 +36,8 @@ export interface LineInput {
   taxRate: DecimalInput;
   taxKind?: TaxKind;
   discount?: DiscountInput | null;
+  /** Senior citizen / PWD statutory discount applies to this line. */
+  statutory?: boolean;
 }
 
 /** Money values as canonical 2-decimal strings. */
@@ -41,6 +48,8 @@ export interface LineResult {
   net: string;
   taxAmount: string;
   total: string;
+  vatExemption: string;
+  statutoryDiscount: string;
 }
 
 export interface SaleTotals {
@@ -54,7 +63,12 @@ export interface SaleTotals {
   vatAmount: string;
   exemptSales: string;
   zeroRatedSales: string;
+  vatExemptionTotal: string;
+  statutoryDiscountTotal: string;
 }
+
+/** Percent, RA 9994 (senior citizens) and RA 10754 (PWD). */
+export const STATUTORY_RATE = "20";
 
 export interface SaleCalculation {
   lines: LineResult[];
@@ -114,10 +128,12 @@ export function calculateSale(
     if (unitPrice.lt(ZERO)) throw new CalculationError("Price cannot be negative");
     const g = roundMoney(unitPrice.times(quantity));
     gross.push(g);
-    lineDiscounts.push(line.discount ? discountAmount(line.discount, g) : ZERO);
+    // Statutory lines take no other discount (the law forbids double discounts).
+    lineDiscounts.push(line.discount && !line.statutory ? discountAmount(line.discount, g) : ZERO);
   }
 
-  const afterLine = gross.map((g, i) => g.minus(lineDiscounts[i]));
+  // Statutory lines are excluded from the order discount (base 0 -> share 0).
+  const afterLine = gross.map((g, i) => (lines[i].statutory ? ZERO : g.minus(lineDiscounts[i])));
   const orderDiscountTotal = options.orderDiscount ? discountAmount(options.orderDiscount, sum(afterLine)) : ZERO;
   const shares = allocate(orderDiscountTotal, afterLine);
 
@@ -125,8 +141,17 @@ export function calculateSale(
   let vat = ZERO;
   let exempt = ZERO;
   let zeroRated = ZERO;
+  let vatExemptionTotal = ZERO;
+  let statutoryTotal = ZERO;
   const results = lines.map((line, i) => {
     const rate = toBig(line.taxRate);
+    if (line.statutory) {
+      const r = statutoryLine(line, gross[i], options.pricesIncludeTax);
+      exempt = exempt.plus(r.total);
+      vatExemptionTotal = vatExemptionTotal.plus(r.vatExemption);
+      statutoryTotal = statutoryTotal.plus(r.statutoryDiscount);
+      return r;
+    }
     const net = gross[i].minus(lineDiscounts[i]).minus(shares[i]);
     let tax: Big;
     let total: Big;
@@ -144,7 +169,7 @@ export function calculateSale(
       vatable = vatable.plus(total.minus(tax));
       vat = vat.plus(tax);
     }
-    return { gross: gross[i], lineDiscount: lineDiscounts[i], share: shares[i], net, tax, total };
+    return { gross: gross[i], lineDiscount: lineDiscounts[i], share: shares[i], net, tax, total, vatExemption: ZERO, statutoryDiscount: ZERO };
   });
 
   const lineDiscountTotal = sum(lineDiscounts);
@@ -156,19 +181,54 @@ export function calculateSale(
       net: toMoneyString(r.net),
       taxAmount: toMoneyString(r.tax),
       total: toMoneyString(r.total),
+      vatExemption: toMoneyString(r.vatExemption),
+      statutoryDiscount: toMoneyString(r.statutoryDiscount),
     })),
     totals: {
       grossTotal: toMoneyString(sum(gross)),
       lineDiscountTotal: toMoneyString(lineDiscountTotal),
       orderDiscountTotal: toMoneyString(orderDiscountTotal),
-      discountTotal: toMoneyString(lineDiscountTotal.plus(orderDiscountTotal)),
+      discountTotal: toMoneyString(lineDiscountTotal.plus(orderDiscountTotal).plus(statutoryTotal)),
       taxTotal: toMoneyString(sum(results.map((r) => r.tax))),
       total: toMoneyString(sum(results.map((r) => r.total))),
       vatableSales: toMoneyString(vatable),
       vatAmount: toMoneyString(vat),
       exemptSales: toMoneyString(exempt),
       zeroRatedSales: toMoneyString(zeroRated),
+      vatExemptionTotal: toMoneyString(vatExemptionTotal),
+      statutoryDiscountTotal: toMoneyString(statutoryTotal),
     },
+  };
+}
+
+interface LineCalc {
+  gross: Big;
+  lineDiscount: Big;
+  share: Big;
+  net: Big;
+  tax: Big;
+  total: Big;
+  vatExemption: Big;
+  statutoryDiscount: Big;
+}
+
+/** Senior citizen / PWD line: remove VAT, then 20% off the VAT-exclusive price (VAT-exempt). */
+function statutoryLine(line: LineInput, gross: Big, pricesIncludeTax: boolean): LineCalc {
+  const rate = toBig(line.taxRate);
+  const kind = line.taxKind ?? "VATABLE";
+  const base =
+    kind === "VATABLE" && rate.gt(ZERO) && pricesIncludeTax ? roundMoney(gross.times(HUNDRED).div(HUNDRED.plus(rate))) : gross;
+  const discount = roundMoney(base.times(toBig(STATUTORY_RATE)).div(HUNDRED));
+  const net = base.minus(discount);
+  return {
+    gross,
+    lineDiscount: ZERO,
+    share: ZERO,
+    net,
+    tax: ZERO,
+    total: net,
+    vatExemption: gross.minus(base),
+    statutoryDiscount: discount,
   };
 }
 

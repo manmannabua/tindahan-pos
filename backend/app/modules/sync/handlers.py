@@ -36,7 +36,7 @@ from app.modules.inventory.models import MovementType
 from app.modules.inventory.service import MovementSpec, post_movements, quantize_qty
 from app.modules.payments.models import Payment, PaymentKind, PaymentMethod
 from app.modules.pricing.models import PriceLevel
-from app.modules.products.models import ProductUnit, ProductVariant
+from app.modules.products.models import Product, ProductUnit, ProductVariant
 from app.modules.promotions.models import Promotion
 from app.modules.returns.service import (
     RefundInput,
@@ -355,6 +355,12 @@ async def complete_sale(ctx: OpContext, payload: dict[str, Any]) -> dict[str, An
             raise Deferred("sync.customer_missing", "Customer has not been synced yet")
         if customer.company_id != ctx.company_id:
             raise Rejected("sync.foreign_customer", "Customer belongs to another company")
+    statutory_items = [i for i in data.items if i.statutory]
+    if statutory_items and data.statutory_discount is None:
+        raise Rejected(
+            "sync.statutory_details_missing",
+            "Senior citizen / PWD discount without the holder details",
+        )
     promotion_ids = {i.promotion_id for i in data.items if i.promotion_id}
     if promotion_ids:
         known = set(
@@ -421,7 +427,12 @@ async def complete_sale(ctx: OpContext, payload: dict[str, Any]) -> dict[str, An
         calc = calculate_sale(
             [
                 LineInput(
-                    i.quantity, i.unit_price, i.tax_rate, i.tax_kind.value, _discount(i.discount)
+                    i.quantity,
+                    i.unit_price,
+                    i.tax_rate,
+                    i.tax_kind.value,
+                    _discount(i.discount),
+                    statutory=i.statutory,
                 )
                 for i in data.items
             ],
@@ -436,6 +447,8 @@ async def complete_sale(ctx: OpContext, payload: dict[str, Any]) -> dict[str, An
                 "net",
                 "tax_amount",
                 "total",
+                "vat_exemption",
+                "statutory_discount",
             ):
                 _compare(
                     f"line {item.line_no} {name}", getattr(item, name), getattr(line, name), diffs
@@ -451,6 +464,8 @@ async def complete_sale(ctx: OpContext, payload: dict[str, Any]) -> dict[str, An
             "vat_amount",
             "exempt_sales",
             "zero_rated_sales",
+            "vat_exemption_total",
+            "statutory_discount_total",
         ):
             _compare(name, getattr(data.totals, name), getattr(calc.totals, name), diffs)
     except CalculationError as exc:
@@ -472,6 +487,7 @@ async def complete_sale(ctx: OpContext, payload: dict[str, Any]) -> dict[str, An
 
     t = data.totals
     od = data.order_discount
+    sd = data.statutory_discount
     sale = Sale(
         id=data.id,
         company_id=ctx.company_id,
@@ -496,6 +512,12 @@ async def complete_sale(ctx: OpContext, payload: dict[str, Any]) -> dict[str, An
         vat_amount=t.vat_amount,
         exempt_sales=t.exempt_sales,
         zero_rated_sales=t.zero_rated_sales,
+        statutory_kind=sd.kind if sd else None,
+        statutory_id_number=sd.id_number if sd else None,
+        statutory_holder_name=sd.holder_name if sd else None,
+        statutory_holder_tin=sd.holder_tin if sd else None,
+        vat_exemption_total=t.vat_exemption_total,
+        statutory_discount_total=t.statutory_discount_total,
         order_discount_kind=od.kind.value if od else None,
         order_discount_value=od.value if od else None,
         order_discount_reason=od.reason if od else None,
@@ -536,6 +558,9 @@ async def complete_sale(ctx: OpContext, payload: dict[str, Any]) -> dict[str, An
                 discount_reason=item.discount.reason if item.discount else None,
                 discount_authorized_by_id=item.discount.authorized_by_id if item.discount else None,
                 promotion_id=item.promotion_id,
+                statutory=item.statutory,
+                vat_exemption=item.vat_exemption,
+                statutory_discount=item.statutory_discount,
                 gross=item.gross,
                 line_discount=item.line_discount,
                 order_discount_share=item.order_discount_share,
@@ -595,6 +620,23 @@ async def complete_sale(ctx: OpContext, payload: dict[str, Any]) -> dict[str, An
     posting = await post_movements(
         db, ctx.company_id, specs, user_id=data.cashier_id, device_id=ctx.device.id
     )
+
+    ineligible = [
+        {"line_no": str(i.line_no), "sku": i.sku}
+        for i in statutory_items
+        if not await _product_eligible(db, variants[i.variant_id].product_id)
+    ]
+    if ineligible:
+        # Kept (the customer paid that), but a manager must confirm it was legitimate.
+        await raise_flag(
+            db,
+            company_id=ctx.company_id,
+            flag_type=FlagType.STATUTORY_DISCOUNT_REVIEW,
+            entity_type="sale",
+            entity_id=sale.id,
+            branch_id=ctx.branch_id,
+            details={"receipt_number": data.receipt_number, "ineligible_lines": ineligible},
+        )
 
     if diffs:
         sale.totals_mismatch = True
@@ -792,6 +834,10 @@ async def create_return_op(ctx: OpContext, payload: dict[str, Any]) -> dict[str,
 # Priorities are assigned by the terminal (docs/SYNC_PROTOCOL.md §2); listed here for reference:
 # customer.upsert 8, cash_session.open 5, sale.complete 10, sale.void 15,
 # cash_movement.record / cash_session.close 40, return.create 50.
+async def _product_eligible(db: AsyncSession, product_id: uuid.UUID) -> bool:
+    return bool(await db.scalar(select(Product.sc_pwd_eligible).where(Product.id == product_id)))
+
+
 HANDLERS: dict[str, HandlerSpec] = {
     "cash_session.open": HandlerSpec("cash_session", open_cash_session),
     "cash_session.close": HandlerSpec("cash_session", close_cash_session),

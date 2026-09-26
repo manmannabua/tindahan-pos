@@ -101,6 +101,7 @@ export function ProductCreateForm() {
       base_unit_id: general.baseUnitId,
       tax_rate_id: optionalId(general.taxRateId),
       track_inventory: general.trackInventory,
+      sc_pwd_eligible: general.scPwdEligible,
       units: unitsIn.map((u) => ({ unit_id: u.unitId, factor: u.factor.trim() })),
       variants: variantsIn,
     };

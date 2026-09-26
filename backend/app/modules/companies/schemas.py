@@ -38,6 +38,8 @@ class CompanyRead(ResponseSchema):
     currency: str
     timezone: str
     prices_include_tax: bool
+    vat_registered: bool
+    bir_accreditation_no: str | None
     settings: dict[str, Any]
     is_active: bool
 
@@ -48,6 +50,8 @@ class CompanyUpdate(Schema):
     tin: str | None = Field(default=None, max_length=32)
     timezone: str | None = Field(default=None, max_length=64)
     prices_include_tax: bool | None = None
+    vat_registered: bool | None = None
+    bir_accreditation_no: str | None = Field(default=None, max_length=64)
     settings: dict[str, Any] | None = None
 
 

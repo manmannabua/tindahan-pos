@@ -34,6 +34,9 @@ export interface SyncEngineOptions {
   batchSize?: number;
   pullLimit?: number;
   onPullPage?: (page: PullResponse) => void;
+  /** Runs after a successful pull (e.g. refresh /sync/context so BIR edits reach the terminal).
+   * Failures are ignored: they never affect selling or the outbox. */
+  afterPull?: () => Promise<void>;
 }
 
 export interface SyncRunResult {
@@ -103,6 +106,7 @@ export class SyncEngine {
     try {
       await this.pullAll();
       result.pulled = true;
+      if (this.options.afterPull) await this.options.afterPull().catch(() => undefined);
       await setMeta(this.db, "lastSyncAt", this.now().toISOString());
     } catch (error) {
       result.transientError = describe(error);

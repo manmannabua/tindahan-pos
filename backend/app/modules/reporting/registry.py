@@ -7,6 +7,7 @@ manager can see sales but not margins).
 import csv
 import io
 import json
+import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import date, datetime
@@ -93,6 +94,13 @@ REPORTS: dict[str, ReportDef] = {
     "expenses": ReportDef("Expenses by category", _simple(rs.expenses_by_category)),
     "returns": ReportDef("Returns", _simple(rs.returns_report)),
     "voids": ReportDef("Voids", _simple(rs.voids_report)),
+    "sc-pwd-book": ReportDef("Senior citizen / PWD sales book", _simple(rs.sc_pwd_book)),
+    "terminal-reading": ReportDef(
+        "Terminal X/Z reading",
+        lambda db, s, o: rs.terminal_reading(
+            db, s, uuid.UUID(o["device_id"]) if o.get("device_id") else None
+        ),
+    ),
 }
 
 
@@ -122,7 +130,7 @@ def to_jsonable(data: Any) -> Any:
     if isinstance(data, list):
         return [to_jsonable(row) for row in data]
     if isinstance(data, dict):
-        return {k: _plain(v) for k, v in data.items()}
+        return {k: to_jsonable(v) for k, v in data.items()}
     return _plain(data)
 
 

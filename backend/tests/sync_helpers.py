@@ -86,9 +86,14 @@ class Terminal:
         method: str = "CASH",
         tendered: str | None = None,
         tamper_total: bool = False,
+        statutory: dict[str, str] | None = None,
     ) -> dict[str, Any]:
+        """`statutory` = senior citizen / PWD holder details; applies to every line."""
         calc = calculate_sale(
-            [LineInput(Decimal(qty), item.unit_price, Decimal("12")) for item, qty in lines],
+            [
+                LineInput(Decimal(qty), item.unit_price, Decimal("12"), statutory=bool(statutory))
+                for item, qty in lines
+            ],
             prices_include_tax=True,
         )
         total = calc.totals.total + (Decimal("1.00") if tamper_total else 0)
@@ -119,6 +124,9 @@ class Terminal:
                     "net": str(line.net),
                     "tax_amount": str(line.tax_amount),
                     "total": str(line.total),
+                    "statutory": bool(statutory),
+                    "vat_exemption": str(line.vat_exemption),
+                    "statutory_discount": str(line.statutory_discount),
                 }
             )
         totals = {k: str(getattr(calc.totals, k)) for k in calc.totals.__slots__}
@@ -130,10 +138,12 @@ class Terminal:
         }
         if method == "CASH":
             payment["tendered"] = str(tendered_amount)
+        extra: dict[str, Any] = {"statutory_discount": statutory} if statutory else {}
         return self.op(
             "sale.complete",
             "sale",
             {
+                **extra,
                 "id": sale_id,
                 "receipt_number": f"{self.prefix}{self.receipt_seq:06d}",
                 "cash_session_id": self.session_id,

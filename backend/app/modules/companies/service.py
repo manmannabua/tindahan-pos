@@ -126,7 +126,7 @@ async def update_company(
         "company.updated",
         entity_type="company",
         entity_id=company.id,
-        changes=apply_patch(company, changes, {"legal_name", "tin"}),
+        changes=apply_patch(company, changes, {"legal_name", "tin", "bir_accreditation_no"}),
     )
     await db.commit()
     await db.refresh(company)

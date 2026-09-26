@@ -46,6 +46,28 @@ describe("present", () => {
     ]);
   });
 
+  it("shows a terminal reading as KPIs with its nested payments as a table", () => {
+    const p = present({
+      device_id: "d",
+      transactions: 2,
+      sc_pwd_discounts: "13.39",
+      vat_exemptions: "8.04",
+      new_accumulated_grand_total: "903.57",
+      payments: [{ method_kind: "CASH", amount: "903.57" }],
+    });
+    expect(p.type).toBe("kpis");
+    if (p.type !== "kpis") return;
+    expect(p.items.map((i) => [i.key, i.value])).toEqual([
+      ["transactions", "2"],
+      ["sc_pwd_discounts", "₱13.39"],
+      ["vat_exemptions", "₱8.04"],
+      ["new_accumulated_grand_total", "₱903.57"],
+    ]);
+    expect(p.nested).toHaveLength(1);
+    expect(p.nested[0].label).toBe("Payments");
+    expect(p.nested[0].presentation.type).toBe("table");
+  });
+
   it("handles empty data", () => {
     expect(present([]).type).toBe("empty");
     expect(present(null).type).toBe("empty");

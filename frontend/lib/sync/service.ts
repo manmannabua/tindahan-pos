@@ -5,12 +5,12 @@
 import { getDeviceClient } from "@/lib/device";
 import { getMeta } from "@/lib/db/meta";
 import { getDb } from "@/lib/db/schema";
-import { APP_VERSION } from "@/lib/pos/setup";
+import { APP_VERSION, applyContext } from "@/lib/pos/setup";
 import { useTerminalStore } from "@/stores/terminal-store";
 
 import { SyncEngine } from "./engine";
 import { SyncRunner } from "./runner";
-import { deviceTransport } from "./transport";
+import { deviceTransport, fetchSyncContext } from "./transport";
 
 let runner: SyncRunner | null = null;
 let unsubscribe: (() => void) | null = null;
@@ -21,7 +21,13 @@ export async function startSync(): Promise<void> {
   const lastSyncAt = await getMeta(db, "lastSyncAt");
   if (lastSyncAt) useTerminalStore.getState().setSyncState({ lastSyncAt });
 
-  const engine = new SyncEngine({ db, transport: deviceTransport(getDeviceClient()), appVersion: APP_VERSION });
+  const client = getDeviceClient();
+  const engine = new SyncEngine({
+    db,
+    transport: deviceTransport(client),
+    appVersion: APP_VERSION,
+    afterPull: async () => applyContext(db, await fetchSyncContext(client)),
+  });
   runner = new SyncRunner({
     db,
     engine,

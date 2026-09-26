@@ -91,6 +91,8 @@ export interface Company {
   currency: string;
   timezone: string;
   prices_include_tax: boolean;
+  vat_registered: boolean;
+  bir_accreditation_no: string | null;
   settings: Record<string, unknown>;
   is_active: boolean;
 }
@@ -107,6 +109,8 @@ export interface CompanyUpdate {
   tin?: string | null;
   timezone?: string;
   prices_include_tax?: boolean;
+  vat_registered?: boolean;
+  bir_accreditation_no?: string | null;
   settings?: Record<string, unknown>;
 }
 
@@ -250,6 +254,18 @@ export interface Device {
   last_seen_at: ISODateTime | null;
   last_sync_at: ISODateTime | null;
   pending_operations: number | null;
+  bir_min: string | null;
+  bir_serial_number: string | null;
+  bir_ptu_number: string | null;
+  bir_ptu_issued_on: string | null;
+}
+
+export interface DeviceUpdate {
+  name?: string | null;
+  bir_min?: string | null;
+  bir_serial_number?: string | null;
+  bir_ptu_number?: string | null;
+  bir_ptu_issued_on?: string | null;
 }
 
 // --- Audit ---------------------------------------------------------------------------------

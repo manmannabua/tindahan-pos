@@ -1,7 +1,8 @@
+import type { DeviceBir } from "@/lib/db/meta";
 import type { LocalBranch, LocalCompany, LocalRefund, LocalReturn, LocalReturnItem } from "@/lib/db/schema";
 import { formatMoney, toMoneyString } from "@/lib/money";
 
-import type { ReceiptDocument, ReceiptLine, ReceiptWidth } from "./receipt";
+import { birHeaderLines, type ReceiptDocument, type ReceiptLine, type ReceiptWidth } from "./receipt";
 
 /** Return / refund slip, printed through the same pipeline as sales receipts. */
 export function buildReturnReceipt(args: {
@@ -13,11 +14,11 @@ export function buildReturnReceipt(args: {
   branch: LocalBranch;
   terminalCode: string;
   width: ReceiptWidth;
+  deviceBir?: DeviceBir | null;
 }): ReceiptDocument {
   const { ret, company } = args;
   const lines: ReceiptLine[] = [
-    { kind: "center", text: company.legalName ?? company.name, bold: true },
-    { kind: "center", text: args.branch.name },
+    ...birHeaderLines(company, args.branch, args.deviceBir),
     { kind: "center", text: "RETURN / REFUND", bold: true },
     { kind: "rule" },
     { kind: "pair", left: "Return", right: ret.returnNumber },

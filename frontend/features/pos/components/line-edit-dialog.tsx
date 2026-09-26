@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { LocalDiscount } from "@/lib/db/schema";
 import { compare, isValidDecimal, multiply, percentOf, toMoneyString } from "@/lib/money";
-import { unitPrice, type CartLine } from "@/lib/pos/cart";
+import { isStatutoryLine, unitPrice, type CartLine } from "@/lib/pos/cart";
 import { useCartStore } from "@/stores/cart-store";
 import { hasPermission, usePosSession } from "@/stores/pos-session-store";
 
@@ -47,6 +47,7 @@ export function LineEditDialog({ line, onClose }: Props) {
 
 function LineEditForm({ line, onClose }: { line: CartLine; onClose: () => void }) {
   const cart = useCartStore();
+  const statutory = isStatutoryLine(cart, line);
   const decimals = line.item.allowsDecimal ? 3 : 0;
   const [quantity, setQuantity] = useState(line.quantity);
   const [price, setPrice] = useState(unitPrice(line) ?? "");
@@ -65,7 +66,9 @@ function LineEditForm({ line, onClose }: { line: CartLine; onClose: () => void }
       cart.overridePrice(line.id, { price: toMoneyString(price), authorizedById: approver });
     }
 
-    if (value && isValidDecimal(value) && compare(value, "0") > 0) {
+    if (statutory) {
+      // Senior citizen / PWD lines take no other discount.
+    } else if (value && isValidDecimal(value) && compare(value, "0") > 0) {
       const discount: LocalDiscount = { kind, value, reason: reason.trim() || null, authorizedById: null };
       const base = toMoneyString(multiply(unitPrice(line) ?? "0", quantity));
       const approver = await authorizeDiscount(discount, base);
@@ -98,6 +101,11 @@ function LineEditForm({ line, onClose }: { line: CartLine; onClose: () => void }
           <DecimalInput id="line-price" value={price} onValueChange={setPrice} className="h-11" />
         </div>
       </div>
+      {statutory ? (
+        <p className="rounded-md bg-sky-50 p-2 text-sm text-sky-900 dark:bg-sky-950 dark:text-sky-100">
+          Senior citizen / PWD discount applies to this item; other discounts are not allowed.
+        </p>
+      ) : (
       <div className="space-y-1.5">
         <Label>Discount</Label>
         <div className="flex gap-2">
@@ -111,6 +119,7 @@ function LineEditForm({ line, onClose }: { line: CartLine; onClose: () => void }
         </div>
         <Input aria-label="Discount reason" placeholder="Reason (optional)" value={reason} onChange={(e) => setReason(e.target.value)} />
       </div>
+      )}
       <DialogFooter className="gap-2">
         <Button type="button" variant="destructive" onClick={() => {
           cart.remove(line.id);

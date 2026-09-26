@@ -23,6 +23,8 @@ const schema = z.object({
   tin: z.string().max(32),
   timezone: z.string().min(1),
   prices_include_tax: z.boolean(),
+  vat_registered: z.boolean(),
+  bir_accreditation_no: z.string().max(64),
 });
 
 type CompanyValues = z.infer<typeof schema>;
@@ -45,16 +47,23 @@ export function CompanyForm({ company, readOnly }: { company: Company; readOnly:
       tin: company.tin ?? "",
       timezone: company.timezone,
       prices_include_tax: company.prices_include_tax,
+      vat_registered: company.vat_registered,
+      bir_accreditation_no: company.bir_accreditation_no ?? "",
     },
   });
 
   const onSubmit = handleSubmit(async (values) => {
     try {
-      await update.mutateAsync({ ...values, legal_name: emptyToNull(values.legal_name), tin: emptyToNull(values.tin) });
+      await update.mutateAsync({
+        ...values,
+        legal_name: emptyToNull(values.legal_name),
+        tin: emptyToNull(values.tin),
+        bir_accreditation_no: emptyToNull(values.bir_accreditation_no),
+      });
       reset(values);
       toast.success("Company settings saved");
     } catch (error) {
-      if (!applyServerErrors(error, setError, ["name", "legal_name", "tin", "timezone"])) toast.error(errorMessage(error));
+      if (!applyServerErrors(error, setError, ["name", "legal_name", "tin", "timezone", "bir_accreditation_no"])) toast.error(errorMessage(error));
     }
   });
 
@@ -102,6 +111,27 @@ export function CompanyForm({ company, readOnly }: { company: Company; readOnly:
                   <Switch id="prices-include-tax" checked={field.value} onCheckedChange={field.onChange} disabled={readOnly} />
                 </Field>
               )}
+            />
+            <Controller
+              control={control}
+              name="vat_registered"
+              render={({ field }) => (
+                <Field orientation="horizontal">
+                  <FieldContent>
+                    <FieldLabel htmlFor="vat-registered">VAT-registered</FieldLabel>
+                    <FieldDescription>
+                      Receipts print &quot;VAT REG TIN&quot;; off prints &quot;NON-VAT REG TIN&quot;.
+                    </FieldDescription>
+                  </FieldContent>
+                  <Switch id="vat-registered" checked={field.value} onCheckedChange={field.onChange} disabled={readOnly} />
+                </Field>
+              )}
+            />
+            <TextField
+              label="BIR accreditation no."
+              description="The POS software accreditation number printed on receipts."
+              error={errors.bir_accreditation_no?.message}
+              {...register("bir_accreditation_no")}
             />
           </fieldset>
         </CardContent>

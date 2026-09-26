@@ -8,28 +8,37 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { getDb, type LocalSale } from "@/lib/db/schema";
+import { getDb } from "@/lib/db/schema";
 import { add, compare, formatMoney, isValidDecimal, toMoneyString } from "@/lib/money";
 import {
   computeRefunds,
   createReturn,
+  remoteReturnableLines,
   returnableLines,
   ReturnVoidError,
+  type RemoteSale,
   type ReturnableLine,
 } from "@/lib/pos/voids-returns";
-import { printReceipt } from "@/lib/printing/print";
 import { buildReturnReceipt } from "@/lib/printing/return-receipt";
 import { triggerSync } from "@/lib/sync/service";
 import { usePosSession } from "@/stores/pos-session-store";
 
 import { requestAuthorization } from "../manager-auth";
+import { printWithFeedback } from "../print";
 import { DecimalInput } from "./money-input";
 
-/** Return items of a local sale and refund the customer (needs returns.create or approval). */
-export function ReturnDialog({ sale, onClose }: { sale: LocalSale | null; onClose: () => void }) {
+/** A sale to return: one stored on this terminal, or one found online on another terminal. */
+export interface ReturnTarget {
+  saleId: string;
+  receiptNumber: string;
+  remote: RemoteSale | null;
+}
+
+/** Return items of a sale and refund the customer (needs returns.create or approval). */
+export function ReturnDialog({ target, onClose }: { target: ReturnTarget | null; onClose: () => void }) {
   return (
-    <Dialog open={sale !== null} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-xl">{sale && <ReturnForm sale={sale} onDone={onClose} />}</DialogContent>
+    <Dialog open={target !== null} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-xl">{target && <ReturnForm sale={target} onDone={onClose} />}</DialogContent>
     </Dialog>
   );
 }
@@ -39,7 +48,7 @@ interface Pick {
   restock: boolean;
 }
 
-function ReturnForm({ sale, onDone }: { sale: LocalSale; onDone: () => void }) {
+function ReturnForm({ sale, onDone }: { sale: ReturnTarget; onDone: () => void }) {
   const { context, cashier, cashSession } = usePosSession();
   const [lines, setLines] = useState<ReturnableLine[] | null>(null);
   const [picks, setPicks] = useState<Record<string, Pick>>({});
@@ -49,8 +58,9 @@ function ReturnForm({ sale, onDone }: { sale: LocalSale; onDone: () => void }) {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    void returnableLines(getDb(), sale.id).then(setLines);
-  }, [sale.id]);
+    const load = sale.remote ? remoteReturnableLines(getDb(), sale.remote) : returnableLines(getDb(), sale.saleId);
+    void load.then(setLines);
+  }, [sale.saleId, sale.remote]);
 
   const requested = useMemo(
     () =>
@@ -80,7 +90,9 @@ function ReturnForm({ sale, onDone }: { sale: LocalSale; onDone: () => void }) {
       const approver = await requestAuthorization("returns.create", `Refund ${formatMoney(preview.total, currency)} on ${sale.receiptNumber}`);
       if (!approver) return;
       const created = await createReturn(getDb(), {
-        saleId: sale.id,
+        saleId: sale.saleId,
+        remote: sale.remote,
+        restockLocationId: context.device.defaultStockLocationId,
         lines: requested,
         refunds: [{ method, amount: preview.total, referenceNo: reference || null }],
         cashier: { id: cashier.id, name: cashier.fullName },
@@ -92,7 +104,7 @@ function ReturnForm({ sale, onDone }: { sale: LocalSale; onDone: () => void }) {
       });
       triggerSync();
       toast.success(`Return ${created.ret.returnNumber}: refund ${formatMoney(created.ret.refundTotal, currency)}`);
-      void printReceipt(
+      void printWithFeedback(
         buildReturnReceipt({
           ...created,
           originalReceipt: sale.receiptNumber,
@@ -100,7 +112,9 @@ function ReturnForm({ sale, onDone }: { sale: LocalSale; onDone: () => void }) {
           branch: context.branch,
           terminalCode: context.device.terminalCode,
           width: context.settings.receiptWidth,
+          deviceBir: context.deviceBir,
         }),
+        context,
       );
       onDone();
     } catch (error) {
@@ -120,7 +134,10 @@ function ReturnForm({ sale, onDone }: { sale: LocalSale; onDone: () => void }) {
     >
       <DialogHeader>
         <DialogTitle>Return items · {sale.receiptNumber}</DialogTitle>
-        <DialogDescription>Refunds are the price actually paid for each item, after discounts.</DialogDescription>
+        <DialogDescription>
+          Refunds are the price actually paid for each item, after discounts.
+          {sale.remote && " This sale was made on another terminal (looked up online)."}
+        </DialogDescription>
       </DialogHeader>
       <ul className="max-h-72 divide-y overflow-auto rounded-lg border" aria-label="Returnable items">
         {lines.map(({ item, remainingQuantity }) => {

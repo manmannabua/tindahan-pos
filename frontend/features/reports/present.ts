@@ -7,7 +7,7 @@ import { formatMoney, isValidDecimal, toBig } from "@/lib/money";
 export type CellKind = "money" | "quantity" | "percent" | "integer" | "datetime" | "date" | "id" | "text";
 
 /** Column names that hold money (decimal strings with 2 places in the API). */
-const MONEY = /(^|_)(sales|total|amount|discounts?|tax|returns|refund_total|voids_amount|revenue_ex_tax|cogs|gross_profit|value|average_ticket|opening_float|expected_cash|server_expected_cash|counted_cash|over_short|total_cost|stock_value|variance_value|gross_sales|net_sales|refunds)$/;
+const MONEY = /(^|_)(sales|total|amount|discounts?|tax|returns|refund_total|voids_amount|revenue_ex_tax|cogs|gross_profit|value|average_ticket|opening_float|expected_cash|server_expected_cash|counted_cash|over_short|total_cost|stock_value|variance_value|gross_sales|net_sales|refunds|gross|net|vat_exemptions?|grand_total)$/;
 const QUANTITY = /(^|_)(quantity|units|on_hand|net_quantity|quantity_sold|absolute_variance_units|reorder_point)$/;
 const PERCENT = /_pct$/;
 const DATETIME = /(_at|^period)$/;
@@ -56,7 +56,12 @@ export interface Column {
 }
 
 export type Presentation =
-  | { type: "kpis"; items: { key: string; label: string; value: string; kind: CellKind }[] }
+  | {
+      type: "kpis";
+      items: { key: string; label: string; value: string; kind: CellKind }[];
+      /** Lists inside a summary (e.g. payments by method in a terminal reading), shown as tables. */
+      nested: { key: string; label: string; presentation: Presentation }[];
+    }
   | { type: "table"; columns: Column[]; rows: Record<string, unknown>[] }
   | { type: "empty" };
 
@@ -75,13 +80,24 @@ export function present(data: unknown): Presentation {
     return { type: "table", columns, rows };
   }
   if (data && typeof data === "object") {
-    const items = Object.entries(data as Record<string, unknown>).map(([key, value]) => {
-      const kind = cellKind(key, value);
-      return { key, label: humanLabel(key), value: formatCell(value, kind), kind };
-    });
-    return items.length ? { type: "kpis", items } : { type: "empty" };
+    const entries = Object.entries(data as Record<string, unknown>);
+    const items = entries
+      .filter(([, value]) => !isNested(value))
+      .map(([key, value]) => {
+        const kind = cellKind(key, value);
+        return { key, label: humanLabel(key), value: formatCell(value, kind), kind };
+      })
+      .filter((item) => item.kind !== "id");
+    const nested = entries
+      .filter(([, value]) => isNested(value))
+      .map(([key, value]) => ({ key, label: humanLabel(key), presentation: present(value) }));
+    return items.length || nested.length ? { type: "kpis", items, nested } : { type: "empty" };
   }
   return { type: "empty" };
+}
+
+function isNested(value: unknown): boolean {
+  return Array.isArray(value) || (typeof value === "object" && value !== null);
 }
 
 /** Chart series for time/hour reports: [{x, y}] with y as a JS number (display only, never math). */

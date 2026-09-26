@@ -13,12 +13,14 @@ import type { CashMovementType } from "@/lib/db/schema";
 import { getDb } from "@/lib/db/schema";
 import { formatMoney, isValidDecimal, toMoneyString } from "@/lib/money";
 import { closeCashSession, openCashSession, recordCashMovement, summarizeSession, type SessionSummary } from "@/lib/pos/cash-session";
-import { printReceipt } from "@/lib/printing/print";
+
 import { buildZRead } from "@/lib/printing/z-read";
 import { triggerSync } from "@/lib/sync/service";
 import { usePosSession } from "@/stores/pos-session-store";
 
 import { requestAuthorization } from "../manager-auth";
+import { printWithFeedback } from "../print";
+import { ReadingsCard } from "./readings-card";
 import { DecimalInput } from "./money-input";
 
 export function OpenCashSession() {
@@ -94,7 +96,7 @@ export function CashView() {
   const width = context.settings.receiptWidth;
 
   const printSummary = (s: SessionSummary) =>
-    void printReceipt(buildZRead(s, { branchName: context.branch.name, terminalCode: context.device.terminalCode, cashierName: cashier.fullName, width }));
+    void printWithFeedback(buildZRead(s, { branchName: context.branch.name, terminalCode: context.device.terminalCode, cashierName: cashier.fullName, width }), context);
 
   if (closed) {
     return (
@@ -103,6 +105,7 @@ export function CashView() {
         <Button className="h-12 w-full" onClick={() => printSummary(closed)}>
           <PrinterIcon /> Print summary
         </Button>
+        <ReadingsCard shiftStart={closed.session.openedAt} />
         <Button variant="outline" className="h-12 w-full" onClick={() => usePosSession.getState().setCashSession(null)}>
           Done
         </Button>
@@ -177,10 +180,11 @@ export function CashView() {
               Close session
             </Button>
             <Button variant="outline" className="h-11 w-full" onClick={() => printSummary(summary)}>
-              <PrinterIcon /> Print X-read
+              <PrinterIcon /> Print cash summary
             </Button>
           </CardContent>
         </Card>
+        <ReadingsCard shiftStart={cashSession.openedAt} />
       </div>
     </div>
   );

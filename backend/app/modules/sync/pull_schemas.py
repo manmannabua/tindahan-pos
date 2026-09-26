@@ -21,6 +21,8 @@ class CompanySync(ResponseSchema):
     currency: str
     timezone: str
     prices_include_tax: bool
+    vat_registered: bool
+    bir_accreditation_no: str | None
     settings: dict[str, Any]
 
 
@@ -106,6 +108,7 @@ class ProductSync(ResponseSchema):
     base_unit_id: uuid.UUID
     tax_rate_id: uuid.UUID
     track_inventory: bool
+    sc_pwd_eligible: bool
     image_url: str | None
     is_active: bool
 

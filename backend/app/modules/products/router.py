@@ -73,6 +73,7 @@ def to_product_read(product: Product, principal: Principal) -> ProductRead:
         base_unit_id=product.base_unit_id,
         tax_rate_id=product.tax_rate_id,
         track_inventory=product.track_inventory,
+        sc_pwd_eligible=product.sc_pwd_eligible,
         image_url=product.image_url,
         is_active=product.is_active,
         units=[
@@ -119,6 +120,7 @@ async def list_products(
             category_id=p.category_id,
             brand_id=p.brand_id,
             track_inventory=p.track_inventory,
+            sc_pwd_eligible=p.sc_pwd_eligible,
             is_active=p.is_active,
             variant_count=count,
             sku=sku,

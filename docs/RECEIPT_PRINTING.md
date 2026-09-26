@@ -44,9 +44,27 @@ customer (if any) · items (name, qty × price, line total, discounts) · subtot
 breakdown (VATable, VAT-exempt, zero-rated, VAT amount) · total · payments (method, reference,
 tendered, change) · footer text · `REPRINT` marker on reprints · receipt-number barcode (Code 128).
 
-> BIR (Philippines) accreditation requirements for official receipts/invoices are out of scope
-> of this codebase. The receipt model contains the fields commonly required so it can be
-> adapted.
+### BIR fields
+
+The data BIR requires on POS receipts/invoices is stored and printed:
+- company: registered (legal) name, business name, TIN with **"VAT REG TIN"** or
+  **"NON-VAT REG TIN"** (`companies.vat_registered`), accreditation number
+  (`companies.bir_accreditation_no`)
+- branch: address, branch TIN, header/footer text (e.g. the invoice disclaimer)
+- terminal: **MIN**, serial number, **PTU** number and date (`devices.bir_*`, edited in the admin
+  portal and delivered to the terminal through `/sync/context`)
+- senior citizen / PWD: holder name, ID number, TIN, signature line, VAT exemption and the 20%
+  discount shown separately
+
+**Readings.** `GET /reports/terminal-reading?device_id=…` is the server-side X/Z reading
+(first/last receipt, gross, regular and SC/PWD discounts, VAT exemptions, returns, voids,
+net, VATable/VAT/exempt/zero-rated sales, payments by method, old/new accumulated grand total).
+The POS prints the same reading from local data, using a non-resettable local grand-total
+counter.
+
+> Having these fields does not make the software BIR-accredited. Accreditation (and a PTU per
+> terminal) is a formal process with BIR; the fields and reports here are what that process
+> typically inspects.
 
 ## 5. Reprint
 
@@ -58,3 +76,22 @@ with `isReprint = true`, and record an audit event `sale.receipt_reprinted`.
 With ESC/POS, the drawer opens via the printer's kick command when a payment method has
 `opens_drawer = true`. With browser printing, most drivers can be configured to kick the drawer
 on each print job.
+
+## 7. Implementation notes (frontend)
+
+- `lib/printing/receipt.ts` lays out every document (receipt, return slip, X/Z reading) as
+  fixed-width rows (32 columns at 58 mm, 48 at 80 mm); the HTML and ESC/POS paths both print
+  those rows, so line breaks match. `birHeaderLines()` is the shared BIR header.
+- `lib/printing/escpos.ts` encodes rows as ASCII (code page 437, non-ASCII transliterated):
+  `ESC @`, `ESC t 0`, `ESC E` for bold, Code 128 (`GS k 73`, subset B) for the receipt
+  barcode, `ESC d 3` + `GS V 66 3` to feed and cut. The drawer kick (`ESC p 0 25 250`) is sent
+  before the receipt when a payment method opens the drawer.
+- `lib/printing/escpos-transport.ts` talks to printers over WebUSB (printer class 7, bulk OUT
+  endpoint, 4 KB chunks) or WebSerial (baud rate per terminal, 9600 by default). Pairing is done
+  once in POS → Settings → Printer and the browser remembers the device.
+- `lib/printing/output.ts` picks the path from the terminal setting (`printerMode`: browser,
+  escpos-usb or escpos-serial). If ESC/POS fails, it prints through the browser instead and the
+  POS shows a warning toast, so a sale always gets a receipt.
+- X/Z readings (`lib/pos/readings.ts`) come from IndexedDB. `meta.grandTotal` goes up in the
+  `completeSale` transaction and down on a local void. Schema v3 seeds it from existing sales.
+  A Z-reading bumps `meta.zCount` and moves `meta.lastZAt` in one transaction.

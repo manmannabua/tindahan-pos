@@ -1,7 +1,7 @@
 "use client";
 
 import { v7 as uuidv7 } from "uuid";
-import { BadgePercentIcon, PauseIcon, PlayIcon, Trash2Icon, UserIcon, WalletIcon } from "lucide-react";
+import { BadgePercentIcon, HeartHandshakeIcon, PauseIcon, PlayIcon, Trash2Icon, UserIcon, WalletIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -12,12 +12,13 @@ import { compare, formatMoney } from "@/lib/money";
 import { calculateCart, itemCount } from "@/lib/pos/cart";
 import { completeSale, SaleValidationError, type TenderInput } from "@/lib/pos/complete-sale";
 import { loadReceipt } from "@/lib/pos/receipts";
-import { printReceipt } from "@/lib/printing/print";
+import { openCashDrawer } from "@/lib/printing/output";
 import { triggerSync } from "@/lib/sync/service";
 import { cartSnapshot, useCartStore } from "@/stores/cart-store";
 import { usePosSession } from "@/stores/pos-session-store";
 
 import { useCartCheckpoint } from "../hooks/use-cart-checkpoint";
+import { printWithFeedback } from "../print";
 import { CartTable } from "./cart-table";
 import { CustomerDialog } from "./customer-dialog";
 import { HeldCartsDialog } from "./held-carts-dialog";
@@ -26,6 +27,7 @@ import { authorizeDiscount } from "./line-edit-dialog";
 import { PaymentDialog } from "./payment-dialog";
 import { SaleCompleteDialog } from "./sale-complete-dialog";
 import { ScanBar } from "./scan-bar";
+import { StatutoryDialog } from "./statutory-dialog";
 
 export function SellScreen() {
   const { context, cashier, cashSession } = usePosSession();
@@ -36,6 +38,7 @@ export function SellScreen() {
   const [showHeld, setShowHeld] = useState(false);
   const [showDiscount, setShowDiscount] = useState(false);
   const [showCustomer, setShowCustomer] = useState(false);
+  const [showStatutory, setShowStatutory] = useState(false);
   const heldCount = useLiveQuery(() => getDb().heldCarts.count(), [], 0);
   useCartCheckpoint(true);
 
@@ -47,9 +50,9 @@ export function SellScreen() {
   const currency = context.company.currency;
   const calc = totals.calculation;
 
-  const printSale = async (saleId: string, isReprint: boolean) => {
+  const printSale = async (saleId: string, isReprint: boolean, kickDrawer = false) => {
     const doc = await loadReceipt(getDb(), saleId, context, isReprint);
-    if (doc) await printReceipt(doc);
+    if (doc) await printWithFeedback(doc, context, { kickDrawer });
   };
 
   const checkout = async (tenders: TenderInput[]) => {
@@ -70,7 +73,10 @@ export function SellScreen() {
       setPaying(false);
       setCompleted(result.sale);
       triggerSync(); // background; never awaited
-      if (context.settings.printReceiptAutomatically) void printSale(result.sale.id, false);
+      // Cash (and any method marked "opens drawer") kicks the drawer, together with the receipt.
+      const kickDrawer = tenders.some((t) => t.method.opensDrawer);
+      if (context.settings.printReceiptAutomatically) void printSale(result.sale.id, false, kickDrawer);
+      else if (kickDrawer) void openCashDrawer(context.settings);
     } catch (error) {
       toast.error(error instanceof SaleValidationError ? error.message : `Could not complete the sale: ${String(error)}`);
     } finally {
@@ -122,11 +128,31 @@ export function SellScreen() {
             </Button>
           )}
         </div>
+        {cart.statutory && (
+          <div
+            data-testid="statutory-banner"
+            className="flex items-center gap-2 rounded-xl border border-sky-300 bg-sky-50 px-3 py-2 text-sm dark:border-sky-800 dark:bg-sky-950"
+          >
+            <HeartHandshakeIcon className="size-4 text-sky-700" />
+            <span className="min-w-0 flex-1 truncate">
+              {cart.statutory.kind === "SENIOR" ? "Senior citizen" : "PWD"}: {cart.statutory.holderName} ({cart.statutory.idNumber})
+            </span>
+            <Button size="sm" variant="ghost" onClick={() => cart.setStatutory(null)}>
+              Remove
+            </Button>
+          </div>
+        )}
         <div className="space-y-2 rounded-xl border bg-background p-4">
           <Row label="Items" value={cart.lines.length ? itemCount(cart) : "0"} />
           <Row label="Subtotal" value={formatMoney(calc?.totals.grossTotal ?? "0", currency)} />
           {calc && compare(calc.totals.discountTotal, "0") > 0 && (
             <Row label="Discount" value={`−${formatMoney(calc.totals.discountTotal, currency)}`} />
+          )}
+          {calc && compare(calc.totals.vatExemptionTotal, "0") > 0 && (
+            <Row label="Less: VAT exemption" value={`−${formatMoney(calc.totals.vatExemptionTotal, currency)}`} />
+          )}
+          {calc && compare(calc.totals.statutoryDiscountTotal, "0") > 0 && (
+            <Row label="Incl. SC/PWD 20% discount" value={`−${formatMoney(calc.totals.statutoryDiscountTotal, currency)}`} />
           )}
           <Row label={context.company.pricesIncludeTax ? "VAT (included)" : "VAT"} value={formatMoney(calc?.totals.taxTotal ?? "0", currency)} />
           <div className="flex items-end justify-between border-t pt-2">
@@ -158,6 +184,9 @@ export function SellScreen() {
           >
             <Trash2Icon /> Clear
           </Button>
+          <Button variant="outline" className="col-span-2 h-12" onClick={() => setShowStatutory(true)}>
+            <HeartHandshakeIcon /> Senior / PWD
+          </Button>
         </div>
       </aside>
 
@@ -180,6 +209,18 @@ export function SellScreen() {
       />
       <HeldCartsDialog open={showHeld} onClose={() => setShowHeld(false)} />
       <CustomerDialog open={showCustomer} onClose={() => setShowCustomer(false)} />
+      <StatutoryDialog
+        open={showStatutory}
+        current={cart.statutory ?? null}
+        onClose={() => setShowStatutory(false)}
+        onApply={(s) => {
+          setShowStatutory(false);
+          cart.setStatutory(s);
+          if (s && !cart.lines.some((l) => l.item.scPwdEligible)) {
+            toast.info("No item in this sale is eligible for the senior citizen / PWD discount yet");
+          }
+        }}
+      />
       <OrderDiscountDialog open={showDiscount} current={cart.orderDiscount} onClose={() => setShowDiscount(false)} onApply={(d) => void applyOrderDiscount(d)} />
     </div>
   );

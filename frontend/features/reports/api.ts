@@ -11,6 +11,8 @@ export interface ReportParams {
   branch_id?: string;
   granularity?: "day" | "week" | "month";
   limit?: number;
+  /** Terminal for the terminal-reading report. */
+  device_id?: string;
 }
 
 export const reportKeys = {
@@ -28,11 +30,12 @@ export function useReportCatalogue() {
   });
 }
 
-export function useReport(name: string, params: ReportParams) {
+export function useReport(name: string, params: ReportParams, enabled = true) {
   return useQuery({
     queryKey: reportKeys.run(name, params),
     queryFn: ({ signal }) => api.get<ReportResult>(`/reports/${name}`, { ...params }, signal),
     placeholderData: (prev) => prev,
+    enabled,
   });
 }
 
@@ -66,6 +69,9 @@ export const CHARTS: Record<string, [string, string]> = {
   "sales-trend": ["period", "sales"],
   "sales-by-hour": ["hour", "sales"],
 };
+
+/** Reports that need a terminal picked before they can run or be exported. */
+export const NEEDS_DEVICE = new Set(["terminal-reading"]);
 
 /** Reports that ignore the date range (current state). */
 export const POINT_IN_TIME = new Set(["inventory-valuation", "low-stock", "out-of-stock", "negative-inventory"]);

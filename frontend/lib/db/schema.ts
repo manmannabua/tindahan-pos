@@ -8,6 +8,7 @@
  * MIGRATIONS: version 1 is what ships to terminals from Phase 3/4 on. From now on never edit an
  * existing `version()`; add a new one with an `upgrade()` that preserves unsynced `outbox` rows.
  */
+import Big from "big.js";
 import Dexie, { type EntityTable } from "dexie";
 
 type UUID = string;
@@ -36,6 +37,8 @@ export interface LocalProduct {
   baseUnitId: UUID;
   taxRateId: UUID;
   trackInventory: boolean;
+  /** Qualifies for the senior citizen / PWD discount (optional: rows from before v3). */
+  scPwdEligible?: boolean;
   imageUrl: string | null;
   isActive: boolean;
 }
@@ -160,6 +163,8 @@ export interface LocalCompany {
   currency: string;
   timezone: string;
   pricesIncludeTax: boolean;
+  vatRegistered?: boolean;
+  birAccreditationNo?: string | null;
   settings: Record<string, unknown>;
 }
 
@@ -228,6 +233,14 @@ export interface LocalDiscount {
   authorizedById: UUID | null;
 }
 
+/** Senior citizen / PWD holder details captured at the counter. */
+export interface LocalStatutory {
+  kind: "SENIOR" | "PWD";
+  idNumber: string;
+  holderName: string;
+  holderTin: string | null;
+}
+
 export interface LocalSale {
   id: UUID;
   receiptNumber: string;
@@ -252,6 +265,10 @@ export interface LocalSale {
   vatAmount: DecimalString;
   exemptSales: DecimalString;
   zeroRatedSales: DecimalString;
+  /** Senior citizen / PWD (optional: rows from before v3). */
+  statutory?: LocalStatutory | null;
+  vatExemptionTotal?: DecimalString;
+  statutoryDiscountTotal?: DecimalString;
   occurredAt: ISODateTime;
   syncStatus: LocalSyncStatus;
   /** Set when voided on this terminal (optional: absent on rows written before v2). */
@@ -289,6 +306,9 @@ export interface LocalSaleItem {
   net: DecimalString;
   taxAmount: DecimalString;
   total: DecimalString;
+  statutory?: boolean;
+  vatExemption?: DecimalString;
+  statutoryDiscount?: DecimalString;
 }
 
 export interface LocalPayment {
@@ -493,6 +513,22 @@ export class PosDatabase extends Dexie {
       returnItems: "id, returnId, saleItemId",
       refunds: "id, returnId",
     });
+    // v3: BIR readings. Seed the non-resettable accumulated grand total from the sales already
+    // on this terminal (completed, not voided). No index changes; outbox untouched.
+    this.version(3)
+      .stores({})
+      .upgrade(async (tx) => {
+        const existing = await tx.table("meta").get("grandTotal");
+        if (existing) return;
+        let total = new Big("0");
+        await tx
+          .table("sales")
+          .toCollection()
+          .each((sale: LocalSale) => {
+            if (sale.status === "COMPLETED") total = total.plus(sale.total);
+          });
+        await tx.table("meta").put({ key: "grandTotal", value: total.toFixed(2) });
+      });
   }
 }
 

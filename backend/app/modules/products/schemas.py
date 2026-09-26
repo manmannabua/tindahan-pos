@@ -43,6 +43,7 @@ class ProductCreate(Schema):
     base_unit_id: uuid.UUID
     tax_rate_id: uuid.UUID | None = Field(default=None, description="null = default tax rate")
     track_inventory: bool = True
+    sc_pwd_eligible: bool = False
     image_url: str | None = Field(default=None, max_length=500)
     units: list[ProductUnitIn] = Field(
         default_factory=list, max_length=10, description="Additional units besides the base unit"
@@ -64,6 +65,7 @@ class ProductUpdate(Schema):
     brand_id: uuid.UUID | None = None
     tax_rate_id: uuid.UUID | None = None
     track_inventory: bool | None = None
+    sc_pwd_eligible: bool | None = None
     image_url: str | None = Field(default=None, max_length=500)
     is_active: bool | None = None
 
@@ -137,6 +139,7 @@ class ProductRead(ResponseSchema):
     base_unit_id: uuid.UUID
     tax_rate_id: uuid.UUID
     track_inventory: bool
+    sc_pwd_eligible: bool
     image_url: str | None
     is_active: bool
     units: list[ProductUnitRead]
@@ -149,6 +152,7 @@ class ProductSummary(ResponseSchema):
     category_id: uuid.UUID | None
     brand_id: uuid.UUID | None
     track_inventory: bool
+    sc_pwd_eligible: bool
     is_active: bool
     variant_count: int
     sku: str | None

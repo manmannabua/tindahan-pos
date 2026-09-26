@@ -14,6 +14,9 @@ export interface CompanySync {
   currency: string;
   timezone: string;
   prices_include_tax: boolean;
+  /** BIR: "VAT REG TIN" vs "NON-VAT REG TIN" (optional: older servers omit it). */
+  vat_registered?: boolean;
+  bir_accreditation_no?: string | null;
   settings: Record<string, unknown>;
 }
 
@@ -99,6 +102,7 @@ export interface ProductSync {
   base_unit_id: string;
   tax_rate_id: string;
   track_inventory: boolean;
+  sc_pwd_eligible?: boolean;
   image_url: string | null;
   is_active: boolean;
 }
@@ -255,7 +259,16 @@ export interface SyncContext {
   default_stock_location_id: string;
   receipt_prefix: string;
   last_receipt_seq: number;
+  /** BIR registration of this terminal. */
+  device_bir?: DeviceBirSync;
   server_time: string;
+}
+
+export interface DeviceBirSync {
+  min: string | null;
+  serial_number: string | null;
+  ptu_number: string | null;
+  ptu_issued_on: string | null;
 }
 
 // --- Push ----------------------------------------------------------------------------------
@@ -322,6 +335,10 @@ export interface SaleItemPayload {
   price_overridden_by_id: string | null;
   discount: DiscountPayload | null;
   promotion_id?: string | null;
+  /** Senior citizen / PWD statutory discount on this line. */
+  statutory: boolean;
+  vat_exemption: string;
+  statutory_discount: string;
   tax_rate_id: string | null;
   tax_rate: string;
   tax_kind: "VATABLE" | "EXEMPT" | "ZERO_RATED";
@@ -354,6 +371,16 @@ export interface SaleTotalsPayload {
   vat_amount: string;
   exempt_sales: string;
   zero_rated_sales: string;
+  vat_exemption_total: string;
+  statutory_discount_total: string;
+}
+
+/** Senior citizen / PWD holder details (RA 9994 / RA 10754). */
+export interface StatutoryDiscountPayload {
+  kind: "SENIOR" | "PWD";
+  id_number: string;
+  holder_name: string;
+  holder_tin: string | null;
 }
 
 export interface SaleCompletePayload {
@@ -368,6 +395,7 @@ export interface SaleCompletePayload {
   prices_include_tax: boolean;
   occurred_at: string;
   order_discount: DiscountPayload | null;
+  statutory_discount?: StatutoryDiscountPayload | null;
   notes: string | null;
   items: SaleItemPayload[];
   payments: PaymentPayload[];
@@ -446,4 +474,36 @@ export interface ReturnCreatePayload {
   occurred_at: string;
   items: ReturnItemPayload[];
   refunds: RefundPayload[];
+}
+
+// --- Online sale lookup (returns of other terminals' sales) ---------------------------------
+
+export interface LookupSaleItem {
+  id: string;
+  line_no: number;
+  variant_id: string;
+  product_name: string;
+  variant_name: string | null;
+  sku: string;
+  unit_code: string;
+  quantity: string;
+  base_quantity: string;
+  unit_price: string;
+  total: string;
+}
+
+export interface LookupSale {
+  id: string;
+  receipt_number: string;
+  status: "COMPLETED" | "VOIDED";
+  total: string;
+  occurred_at: string;
+  items: LookupSaleItem[];
+}
+
+export interface SaleLookupResponse {
+  sale: LookupSale;
+  returned_quantities: Record<string, string>;
+  /** Amount already refunded per sale item (absent on older servers). */
+  refunded_amounts?: Record<string, string>;
 }

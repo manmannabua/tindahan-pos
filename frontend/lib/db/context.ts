@@ -2,7 +2,7 @@
  * The terminal's selling context: company/branch settings, device identity and defaults.
  * Loaded from IndexedDB once per POS session.
  */
-import { getMeta, getTerminalSettings, type DeviceIdentity, type TerminalSettings } from "./meta";
+import { getMeta, getTerminalSettings, type DeviceBir, type DeviceIdentity, type TerminalSettings } from "./meta";
 import type { LocalBranch, LocalCompany, LocalPaymentMethod, LocalPriceLevel, PosDatabase } from "./schema";
 
 export interface PosContext {
@@ -12,6 +12,8 @@ export interface PosContext {
   defaultPriceLevel: LocalPriceLevel;
   paymentMethods: LocalPaymentMethod[];
   settings: TerminalSettings;
+  /** BIR registration of this terminal (null until the server provides it). */
+  deviceBir: DeviceBir | null;
 }
 
 export class TerminalNotReadyError extends Error {
@@ -22,7 +24,7 @@ export class TerminalNotReadyError extends Error {
 }
 
 export async function loadPosContext(db: PosDatabase): Promise<PosContext> {
-  const [initStatus, device, companyRow, branchRow, levels, methods, settings] = await Promise.all([
+  const [initStatus, device, companyRow, branchRow, levels, methods, settings, deviceBir] = await Promise.all([
     getMeta(db, "initStatus"),
     getMeta(db, "device"),
     db.settings.get("company"),
@@ -30,6 +32,7 @@ export async function loadPosContext(db: PosDatabase): Promise<PosContext> {
     db.priceLevels.toArray(),
     db.paymentMethods.toArray(),
     getTerminalSettings(db),
+    getMeta(db, "deviceBir"),
   ]);
   const defaultPriceLevel = levels.find((l) => l.isDefault && l.isActive);
   if (initStatus !== "READY" || !device || !companyRow || !branchRow || !defaultPriceLevel) {
@@ -42,5 +45,6 @@ export async function loadPosContext(db: PosDatabase): Promise<PosContext> {
     defaultPriceLevel,
     paymentMethods: methods.filter((m) => m.isActive).sort((a, b) => a.sortOrder - b.sortOrder),
     settings,
+    deviceBir: deviceBir ?? null,
   };
 }

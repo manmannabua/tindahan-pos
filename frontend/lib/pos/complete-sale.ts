@@ -16,13 +16,13 @@ import type {
   LocalSaleItem,
   PosDatabase,
 } from "@/lib/db/schema";
-import { multiply, roundQuantity, subtract, toMoneyString, toQuantityString } from "@/lib/money";
+import { add, multiply, roundQuantity, subtract, toMoneyString, toQuantityString } from "@/lib/money";
 import { settlePayments } from "@/lib/money/sale-calculation";
 import { applyLocalMovement } from "@/lib/sync/reconcile";
 import { enqueue, PRIORITY } from "@/lib/sync/outbox";
 import type { DiscountPayload, SaleCompletePayload } from "@/types/sync";
 
-import { calculateCart, effectiveDiscount, unitPrice, type Cart } from "./cart";
+import { calculateCart, isStatutoryLine, lineDiscountFor, unitPrice, type Cart } from "./cart";
 
 /** Same namespace as backend app/shared/ids.py: `derived_id(source, purpose)`. */
 export const POS_NAMESPACE = "6f1c8a52-3d4e-4b7a-9c1e-2a5b8d0f4e11";
@@ -118,8 +118,8 @@ export async function completeSale(db: PosDatabase, args: CompleteSaleArgs): Pro
       unitPrice: toMoneyString(price),
       originalUnitPrice: line.override && line.listPrice ? toMoneyString(line.listPrice) : null,
       priceOverriddenById: line.override?.authorizedById ?? null,
-      discount: effectiveDiscount(line),
-      promotionId: line.discount ? null : (line.promotion?.id ?? null),
+      discount: lineDiscountFor(args.cart, line),
+      promotionId: line.discount || isStatutoryLine(args.cart, line) ? null : (line.promotion?.id ?? null),
       taxRateId: line.item.taxRateId,
       taxRate: line.item.taxRate,
       taxKind: line.item.taxKind,
@@ -129,8 +129,15 @@ export async function completeSale(db: PosDatabase, args: CompleteSaleArgs): Pro
       net: r.net,
       taxAmount: r.taxAmount,
       total: r.total,
+      statutory: isStatutoryLine(args.cart, line),
+      vatExemption: r.vatExemption,
+      statutoryDiscount: r.statutoryDiscount,
     };
   });
+  const holder = args.cart.statutory;
+  if (items.some((i) => i.statutory) && (!holder?.idNumber.trim() || !holder.holderName.trim())) {
+    throw new SaleValidationError("Senior citizen / PWD details are missing");
+  }
 
   const payments: LocalPayment[] = args.tenders.map((t) => {
     const amount = toMoneyString(t.amount);
@@ -167,6 +174,7 @@ export async function completeSale(db: PosDatabase, args: CompleteSaleArgs): Pro
         status: "COMPLETED",
         pricesIncludeTax: args.pricesIncludeTax,
         orderDiscount: args.cart.orderDiscount,
+        statutory: items.some((i) => i.statutory) ? (args.cart.statutory ?? null) : null,
         ...calc.totals,
         paidTotal: settlement.paidTotal,
         changeTotal: settlement.changeTotal,
@@ -206,6 +214,9 @@ export async function completeSale(db: PosDatabase, args: CompleteSaleArgs): Pro
         now: args.now,
       });
       await db.meta.put({ key: "receiptSeq", value: seq });
+      // Accumulated grand total (BIR readings): non-resettable, updated with the sale itself.
+      const grand = ((await getMeta(db, "grandTotal")) as string | undefined) ?? "0";
+      await db.meta.put({ key: "grandTotal", value: toMoneyString(add(grand, sale.total)) });
       await db.activeCart.delete("current");
       return { sale, items, payments, payload };
     },
@@ -230,6 +241,14 @@ function buildPayload(
     prices_include_tax: sale.pricesIncludeTax,
     occurred_at: sale.occurredAt,
     order_discount: discountPayload(sale.orderDiscount),
+    statutory_discount: sale.statutory
+      ? {
+          kind: sale.statutory.kind,
+          id_number: sale.statutory.idNumber,
+          holder_name: sale.statutory.holderName,
+          holder_tin: sale.statutory.holderTin,
+        }
+      : null,
     notes: args.notes ?? null,
     items: items.map((i) => ({
       id: i.id,
@@ -248,6 +267,9 @@ function buildPayload(
       price_overridden_by_id: i.priceOverriddenById,
       discount: discountPayload(i.discount),
       promotion_id: i.promotionId ?? null,
+      statutory: i.statutory ?? false,
+      vat_exemption: i.vatExemption ?? "0.00",
+      statutory_discount: i.statutoryDiscount ?? "0.00",
       tax_rate_id: i.taxRateId,
       tax_rate: i.taxRate,
       tax_kind: i.taxKind,
@@ -278,6 +300,8 @@ function buildPayload(
       vat_amount: sale.vatAmount,
       exempt_sales: sale.exemptSales,
       zero_rated_sales: sale.zeroRatedSales,
+      vat_exemption_total: sale.vatExemptionTotal ?? "0.00",
+      statutory_discount_total: sale.statutoryDiscountTotal ?? "0.00",
     },
   };
 }

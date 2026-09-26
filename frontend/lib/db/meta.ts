@@ -17,6 +17,13 @@ export interface DeviceIdentity {
   registeredAt: string;
 }
 
+export interface DeviceBir {
+  min: string | null;
+  serialNumber: string | null;
+  ptuNumber: string | null;
+  ptuIssuedOn: string | null;
+}
+
 export interface PinLockout {
   failures: number;
   lockedUntil: string | null;
@@ -43,6 +50,15 @@ export interface MetaValues {
   /** When the current/last pull pass started (reconciliation boundary). */
   pullPassStartedAt: string;
   persistentStorage: boolean;
+  /** BIR registration of this terminal (from /sync/context). */
+  deviceBir: DeviceBir;
+  /** Accumulated grand total of completed sales on this terminal. Never reset. */
+  grandTotal: string;
+  /** Number of Z-readings printed on this terminal. */
+  zCount: number;
+  /** Grand total at the last Z-reading (start of the next one). */
+  lastZGrandTotal: string;
+  lastZAt: string;
   [key: `pinLockout:${string}`]: PinLockout;
 }
 
@@ -77,6 +93,9 @@ export interface TerminalSettings {
   scannerMinLength: number;
   scannerMaxInterKeyMs: number;
   scannerMaxAvgInterKeyMs: number;
+  /** Browser printing (any driver) or ESC/POS straight to the printer (WebUSB/WebSerial). */
+  printerMode: "browser" | "escpos-usb" | "escpos-serial";
+  serialBaudRate: number;
 }
 
 export const DEFAULT_SETTINGS: TerminalSettings = {
@@ -88,6 +107,8 @@ export const DEFAULT_SETTINGS: TerminalSettings = {
   scannerMinLength: DEFAULT_SCANNER_OPTIONS.minLength,
   scannerMaxInterKeyMs: DEFAULT_SCANNER_OPTIONS.maxInterKeyMs,
   scannerMaxAvgInterKeyMs: DEFAULT_SCANNER_OPTIONS.maxAvgInterKeyMs,
+  printerMode: "browser",
+  serialBaudRate: 9600,
 };
 
 export async function getTerminalSettings(db: PosDatabase): Promise<TerminalSettings> {

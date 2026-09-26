@@ -205,6 +205,25 @@ Per line (all amounts rounded **HALF_UP to 2 decimals** at each named step):
    - prices tax-exclusive: `tax = round(net × rate / 100)`, `total = net + tax`
 6. Sale totals are sums of line values. `change = tendered − total` (cash only).
 
+### Senior citizen / PWD discount (RA 9994 / RA 10754)
+
+When a senior citizen or PWD presents an ID, lines of *eligible* products
+(`products.sc_pwd_eligible`, e.g. medicines) are computed differently:
+
+1. `base = round(gross x 100 / (100 + VAT rate))` for VAT-inclusive VATable prices (else `gross`)
+2. `vat_exemption = gross - base` — the sale is VAT-exempt for that line
+3. `statutory_discount = round(base x 20%)`
+4. `total = base - statutory_discount`, tax 0
+
+Statutory lines take no other line discount or promotion and are excluded from the order
+discount (no double discounts). The holder's name, ID number and TIN are stored on the sale,
+printed on the receipt, and listed in the **senior citizen / PWD sales book** report
+(`/reports/sc-pwd-book`). A statutory line on a non-eligible product is still stored (the
+customer paid that) but raises a `STATUTORY_DISCOUNT_REVIEW` flag.
+
+Not implemented: the 5% discount on basic necessities and prime commodities for senior
+citizens (DTI/DA joint administrative orders) — it has its own caps and computation.
+
 Why per line and not on the sale total? Tax rates can differ per product (VAT, VAT-exempt,
 zero-rated), and per-line rounding produces receipts whose lines add up exactly.
 

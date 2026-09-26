@@ -25,7 +25,7 @@ import type {
 import { add, compare, multiply, roundMoney, roundQuantity, subtract, toBig, toMoneyString, toQuantityString } from "@/lib/money";
 import { enqueue, PRIORITY } from "@/lib/sync/outbox";
 import { applyLocalMovement } from "@/lib/sync/reconcile";
-import type { ReturnCreatePayload, SaleVoidPayload } from "@/types/sync";
+import type { ReturnCreatePayload, SaleLookupResponse, SaleVoidPayload } from "@/types/sync";
 
 import { derivedId } from "./complete-sale";
 
@@ -59,7 +59,7 @@ export async function voidSale(db: PosDatabase, args: VoidArgs): Promise<LocalSa
   const now = (args.now ?? new Date()).toISOString();
   return db.transaction(
     "rw",
-    [db.sales, db.saleItems, db.returns, db.cashSessions, db.variants, db.products, db.inventoryMovements, db.inventory, db.outbox],
+    [db.meta, db.sales, db.saleItems, db.returns, db.cashSessions, db.variants, db.products, db.inventoryMovements, db.inventory, db.outbox],
     async () => {
       const sale = await db.sales.get(args.saleId);
       if (!sale) throw new ReturnVoidError("Sale not found on this terminal");
@@ -73,6 +73,9 @@ export async function voidSale(db: PosDatabase, args: VoidArgs): Promise<LocalSa
       }
       const voided: LocalSale = { ...sale, status: "VOIDED", voidedAt: now, voidedById: args.voidedById, voidReason: reason };
       await db.sales.put(voided);
+      // The accumulated grand total counts completed sales only (same as the server's reading).
+      const grand = (await getMeta(db, "grandTotal")) ?? "0";
+      await db.meta.put({ key: "grandTotal", value: toMoneyString(subtract(grand, sale.total)) });
 
       const items = await db.saleItems.where("saleId").equals(sale.id).toArray();
       for (const item of items) {
@@ -126,6 +129,9 @@ export interface RefundInput {
 
 export interface ReturnArgs {
   saleId: string;
+  /** A sale made on another terminal, found with the online lookup (restocks at `restockLocationId`). */
+  remote?: RemoteSale | null;
+  restockLocationId?: string;
   lines: ReturnLineInput[];
   refunds: RefundInput[];
   cashier: { id: string; name: string };
@@ -137,8 +143,14 @@ export interface ReturnArgs {
   now?: Date;
 }
 
+/** The parts of a sold line a return needs (local sale item or a looked-up remote one). */
+export type ReturnSaleItem = Pick<
+  LocalSaleItem,
+  "id" | "lineNo" | "variantId" | "productName" | "unitCode" | "unitFactor" | "quantity" | "total"
+>;
+
 export interface ReturnableLine {
-  item: LocalSaleItem;
+  item: ReturnSaleItem;
   returnedQuantity: string;
   remainingQuantity: string;
   returnedRefund: string;
@@ -158,6 +170,74 @@ export async function returnableLines(db: PosDatabase, saleId: string): Promise<
       returnedRefund: toMoneyString(add(...mine.map((d) => d.refundAmount))),
     };
   });
+}
+
+/** A sale from another terminal (GET /sync/sales/lookup), returnable while online. */
+export interface RemoteSale {
+  saleId: string;
+  receiptNumber: string;
+  status: "COMPLETED" | "VOIDED";
+  items: ReturnSaleItem[];
+  /** Quantity already returned per sale item according to the server. */
+  serverReturned: Record<string, string>;
+  /** Amount already refunded per sale item according to the server (if reported). */
+  serverRefunded?: Record<string, string>;
+}
+
+export function remoteSaleFromLookup(lookup: SaleLookupResponse): RemoteSale {
+  return {
+    saleId: lookup.sale.id,
+    receiptNumber: lookup.sale.receipt_number,
+    status: lookup.sale.status,
+    items: lookup.sale.items.map((i) => ({
+      id: i.id,
+      lineNo: i.line_no,
+      variantId: i.variant_id,
+      productName: i.variant_name ? `${i.product_name} ${i.variant_name}` : i.product_name,
+      unitCode: i.unit_code,
+      unitFactor: toQuantityString(toBig(i.base_quantity).div(toBig(i.quantity))),
+      quantity: toQuantityString(i.quantity),
+      total: toMoneyString(i.total),
+    })),
+    serverReturned: lookup.returned_quantities,
+    serverRefunded: lookup.refunded_amounts,
+  };
+}
+
+/**
+ * Returnable lines of a remote sale: server-side returns + this terminal's returns of it that
+ * haven't synced yet. Earlier refunds are estimated pro-rata (the lookup reports quantities, not
+ * amounts); the server re-checks the final "exact remainder" refund.
+ */
+export async function remoteReturnableLines(db: PosDatabase, remote: RemoteSale): Promise<ReturnableLine[]> {
+  const pendingReturns = (await db.returns.where("saleId").equals(remote.saleId).toArray()).filter(
+    (r) => r.syncStatus === "PENDING",
+  );
+  const pendingItems = pendingReturns.length
+    ? await db.returnItems.where("returnId").anyOf(pendingReturns.map((r) => r.id)).toArray()
+    : [];
+  return [...remote.items]
+    .sort((a, b) => a.lineNo - b.lineNo)
+    .map((item) => {
+      const local = pendingItems.filter((d) => d.saleItemId === item.id);
+      const returnedQuantity = toQuantityString(
+        add(remote.serverReturned[item.id] ?? "0", ...local.map((d) => d.quantity)),
+      );
+      // Exact amounts from the server; pro-rata estimate only for servers that don't report them.
+      const reported = remote.serverRefunded?.[item.id];
+      const serverRefund =
+        reported !== undefined
+          ? toBig(reported)
+          : roundMoney(
+              toBig(item.total).times(toBig(remote.serverReturned[item.id] ?? "0")).div(toBig(item.quantity)),
+            );
+      return {
+        item,
+        returnedQuantity,
+        remainingQuantity: toQuantityString(subtract(item.quantity, returnedQuantity)),
+        returnedRefund: toMoneyString(add(serverRefund, ...local.map((d) => d.refundAmount))),
+      };
+    });
 }
 
 /** Refund for each requested line — the backend's rule, including same-request accumulation. */
@@ -210,10 +290,13 @@ export async function createReturn(db: PosDatabase, args: ReturnArgs): Promise<C
     "rw",
     [db.meta, db.sales, db.saleItems, db.returns, db.returnItems, db.refunds, db.variants, db.products, db.inventoryMovements, db.inventory, db.outbox],
     async () => {
-      const sale = await db.sales.get(args.saleId);
-      if (!sale) throw new ReturnVoidError("Sale not found on this terminal");
-      if (sale.status !== "COMPLETED") throw new ReturnVoidError("Only completed sales can be returned");
-      const lines = await returnableLines(db, sale.id);
+      const localSale = args.remote ? undefined : await db.sales.get(args.saleId);
+      const saleId = args.remote?.saleId ?? localSale?.id;
+      const status = args.remote?.status ?? localSale?.status;
+      const restockLocationId = localSale?.stockLocationId ?? args.restockLocationId;
+      if (!saleId || !restockLocationId) throw new ReturnVoidError("Sale not found on this terminal");
+      if (status !== "COMPLETED") throw new ReturnVoidError("Only completed sales can be returned");
+      const lines = args.remote ? await remoteReturnableLines(db, args.remote) : await returnableLines(db, saleId);
       const refundAmounts = computeRefunds(lines, requested);
       const refundTotal = toMoneyString(add(...refundAmounts));
       const paidBack = toMoneyString(add(...args.refunds.map((r) => r.amount)));
@@ -225,7 +308,7 @@ export async function createReturn(db: PosDatabase, args: ReturnArgs): Promise<C
       const returnId = uuidv7();
       const ret: LocalReturn = {
         id: returnId,
-        saleId: sale.id,
+        saleId,
         returnNumber: formatReturnNumber(args.receiptPrefix, seq),
         cashSessionId: args.cashSessionId,
         cashierId: args.cashier.id,
@@ -238,7 +321,7 @@ export async function createReturn(db: PosDatabase, args: ReturnArgs): Promise<C
       };
       const byId = new Map(lines.map((l) => [l.item.id, l.item]));
       const items: LocalReturnItem[] = requested.map((r, i) => {
-        const saleItem = byId.get(r.saleItemId) as LocalSaleItem;
+        const saleItem = byId.get(r.saleItemId) as ReturnSaleItem;
         return {
           id: uuidv7(),
           returnId,
@@ -270,19 +353,19 @@ export async function createReturn(db: PosDatabase, args: ReturnArgs): Promise<C
         await db.inventoryMovements.put({
           id: derivedId(item.id, "SALE_RETURN"),
           variantId: item.variantId,
-          stockLocationId: sale.stockLocationId,
+          stockLocationId: restockLocationId,
           signedQuantity: item.baseQuantity,
           movementType: "SALE_RETURN",
           referenceId: returnId,
           occurredAt: now,
           ackedAt: null,
         });
-        await applyLocalMovement(db, sale.stockLocationId, item.variantId, item.baseQuantity, now);
+        await applyLocalMovement(db, restockLocationId, item.variantId, item.baseQuantity, now);
       }
 
       const payload: ReturnCreatePayload = {
         id: returnId,
-        sale_id: sale.id,
+        sale_id: saleId,
         return_number: ret.returnNumber,
         cash_session_id: ret.cashSessionId,
         cashier_id: ret.cashierId,

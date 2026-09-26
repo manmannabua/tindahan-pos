@@ -42,6 +42,8 @@ const mapCompany = (r: PullTables["companies"]): LocalCompany => ({
   currency: r.currency,
   timezone: r.timezone,
   pricesIncludeTax: r.prices_include_tax,
+  vatRegistered: r.vat_registered ?? true,
+  birAccreditationNo: r.bir_accreditation_no ?? null,
   settings: r.settings,
 });
 
@@ -171,6 +173,7 @@ export async function applyPullPage(db: PosDatabase, page: PullResponse, now = n
         baseUnitId: r.base_unit_id,
         taxRateId: r.tax_rate_id,
         trackInventory: r.track_inventory,
+        scPwdEligible: r.sc_pwd_eligible ?? false,
         imageUrl: r.image_url,
         isActive: r.is_active,
       })),

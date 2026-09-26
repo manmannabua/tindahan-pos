@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useUpdateProduct } from "@/features/catalog/api";
@@ -20,6 +21,7 @@ function toValues(p: Product): GeneralValues {
     baseUnitId: p.base_unit_id,
     taxRateId: p.tax_rate_id,
     trackInventory: p.track_inventory,
+    scPwdEligible: p.sc_pwd_eligible,
     isActive: p.is_active,
   };
 }
@@ -43,6 +45,7 @@ export function ProductGeneralCard({ product, canEdit }: { product: Product; can
         brand_id: optionalId(values.brandId),
         tax_rate_id: values.taxRateId,
         track_inventory: values.trackInventory,
+        sc_pwd_eligible: values.scPwdEligible,
         is_active: values.isActive,
       });
       toast.success("Product saved");
@@ -54,7 +57,10 @@ export function ProductGeneralCard({ product, canEdit }: { product: Product; can
   return (
     <Card>
       <CardHeader>
-        <CardTitle>General</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          General
+          {product.sc_pwd_eligible && <Badge variant="secondary">SC/PWD eligible</Badge>}
+        </CardTitle>
       </CardHeader>
       <CardContent className="grid gap-4">
         <fieldset disabled={!canEdit} className="contents">

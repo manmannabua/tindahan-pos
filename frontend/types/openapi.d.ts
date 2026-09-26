@@ -485,7 +485,11 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Update Device
+         * @description Rename a terminal or record its BIR registration (MIN, serial number, PTU).
+         */
+        patch: operations["update_device_api_v1_devices__device_id__patch"];
         trace?: never;
     };
     "/api/v1/devices/{device_id}/revoke": {
@@ -1297,6 +1301,27 @@ export interface paths {
          * @description Everything a terminal needs to know about itself before the first pull.
          */
         get: operations["sync_context_api_v1_sync_context_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sync/sales/lookup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lookup Sale
+         * @description Online lookup of a sale made on ANY terminal of the company, so a POS can process a
+         *     return for it. Offline, returns are limited to sales stored on the terminal itself.
+         */
+        get: operations["lookup_sale_api_v1_sync_sales_lookup_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2277,6 +2302,10 @@ export interface components {
             timezone: string;
             /** Prices Include Tax */
             prices_include_tax: boolean;
+            /** Vat Registered */
+            vat_registered: boolean;
+            /** Bir Accreditation No */
+            bir_accreditation_no: string | null;
             /** Settings */
             settings: {
                 [key: string]: unknown;
@@ -2314,6 +2343,10 @@ export interface components {
             timezone?: string | null;
             /** Prices Include Tax */
             prices_include_tax?: boolean | null;
+            /** Vat Registered */
+            vat_registered?: boolean | null;
+            /** Bir Accreditation No */
+            bir_accreditation_no?: string | null;
             /** Settings */
             settings?: {
                 [key: string]: unknown;
@@ -2586,6 +2619,14 @@ export interface components {
             last_sync_at: string | null;
             /** Pending Operations */
             pending_operations: number | null;
+            /** Bir Min */
+            bir_min: string | null;
+            /** Bir Serial Number */
+            bir_serial_number: string | null;
+            /** Bir Ptu Number */
+            bir_ptu_number: string | null;
+            /** Bir Ptu Issued On */
+            bir_ptu_issued_on: string | null;
         };
         /** DeviceRegisterRequest */
         DeviceRegisterRequest: {
@@ -2640,6 +2681,19 @@ export interface components {
             /** Expires In */
             expires_in: number;
             device: components["schemas"]["DeviceRead"];
+        };
+        /** DeviceUpdate */
+        DeviceUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Bir Min */
+            bir_min?: string | null;
+            /** Bir Serial Number */
+            bir_serial_number?: string | null;
+            /** Bir Ptu Number */
+            bir_ptu_number?: string | null;
+            /** Bir Ptu Issued On */
+            bir_ptu_issued_on?: string | null;
         };
         /** ExpenseCategoryCreate */
         ExpenseCategoryCreate: {
@@ -2793,7 +2847,7 @@ export interface components {
          * FlagType
          * @enum {string}
          */
-        FlagType: "NEGATIVE_INVENTORY" | "TOTAL_MISMATCH" | "CASH_SESSION_MISMATCH" | "USER_NOT_AUTHORIZED" | "PRICE_MISMATCH" | "CLOCK_SKEW" | "BALANCE_DRIFT" | "TRANSFER_DISCREPANCY" | "DUPLICATE_CUSTOMER";
+        FlagType: "NEGATIVE_INVENTORY" | "TOTAL_MISMATCH" | "CASH_SESSION_MISMATCH" | "USER_NOT_AUTHORIZED" | "PRICE_MISMATCH" | "CLOCK_SKEW" | "BALANCE_DRIFT" | "TRANSFER_DISCREPANCY" | "STATUTORY_DISCOUNT_REVIEW" | "DUPLICATE_CUSTOMER";
         /** GenerateBarcodeRequest */
         GenerateBarcodeRequest: {
             /** Unit Id */
@@ -3600,6 +3654,11 @@ export interface components {
              * @default true
              */
             track_inventory: boolean;
+            /**
+             * Sc Pwd Eligible
+             * @default false
+             */
+            sc_pwd_eligible: boolean;
             /** Image Url */
             image_url?: string | null;
             /**
@@ -3637,6 +3696,8 @@ export interface components {
             tax_rate_id: string;
             /** Track Inventory */
             track_inventory: boolean;
+            /** Sc Pwd Eligible */
+            sc_pwd_eligible: boolean;
             /** Image Url */
             image_url: string | null;
             /** Is Active */
@@ -3661,6 +3722,8 @@ export interface components {
             brand_id: string | null;
             /** Track Inventory */
             track_inventory: boolean;
+            /** Sc Pwd Eligible */
+            sc_pwd_eligible: boolean;
             /** Is Active */
             is_active: boolean;
             /** Variant Count */
@@ -3729,6 +3792,8 @@ export interface components {
             tax_rate_id?: string | null;
             /** Track Inventory */
             track_inventory?: boolean | null;
+            /** Sc Pwd Eligible */
+            sc_pwd_eligible?: boolean | null;
             /** Image Url */
             image_url?: string | null;
             /** Is Active */
@@ -4422,6 +4487,18 @@ export interface components {
             exempt_sales: string;
             /** Zero Rated Sales */
             zero_rated_sales: string;
+            /** Statutory Kind */
+            statutory_kind: string | null;
+            /** Statutory Id Number */
+            statutory_id_number: string | null;
+            /** Statutory Holder Name */
+            statutory_holder_name: string | null;
+            /** Statutory Holder Tin */
+            statutory_holder_tin: string | null;
+            /** Vat Exemption Total */
+            vat_exemption_total: string;
+            /** Statutory Discount Total */
+            statutory_discount_total: string;
             /** Order Discount Kind */
             order_discount_kind: string | null;
             /** Order Discount Value */
@@ -4490,6 +4567,24 @@ export interface components {
             tax_amount: string;
             /** Total */
             total: string;
+            /** Statutory */
+            statutory: boolean;
+            /** Vat Exemption */
+            vat_exemption: string;
+            /** Statutory Discount */
+            statutory_discount: string;
+        };
+        /** SaleLookup */
+        SaleLookup: {
+            sale: components["schemas"]["SaleDetail"];
+            /** Returned Quantities */
+            returned_quantities: {
+                [key: string]: string;
+            };
+            /** Refunded Amounts */
+            refunded_amounts: {
+                [key: string]: string;
+            };
         };
         /** SaleSummary */
         SaleSummary: {
@@ -4785,6 +4880,10 @@ export interface components {
             device_id: string;
             /** Terminal Code */
             terminal_code: string;
+            /** Device Bir */
+            device_bir: {
+                [key: string]: unknown;
+            };
             /** Company */
             company: {
                 [key: string]: unknown;
@@ -6208,6 +6307,41 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeviceRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_device_api_v1_devices__device_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                device_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeviceUpdate"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -8086,6 +8220,37 @@ export interface operations {
             };
         };
     };
+    lookup_sale_api_v1_sync_sales_lookup_get: {
+        parameters: {
+            query: {
+                receipt_number: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SaleLookup"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_sales_api_v1_sales_get: {
         parameters: {
             query?: {
@@ -9160,6 +9325,7 @@ export interface operations {
                 branch_id?: string | null;
                 granularity?: ("day" | "week" | "month") | null;
                 limit?: number | null;
+                device_id?: string | null;
             };
             header?: never;
             path: {
@@ -9197,6 +9363,7 @@ export interface operations {
                 branch_id?: string | null;
                 granularity?: ("day" | "week" | "month") | null;
                 limit?: number | null;
+                device_id?: string | null;
             };
             header?: never;
             path: {

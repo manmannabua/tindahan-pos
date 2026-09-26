@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 from enum import StrEnum
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from pydantic import Field
 
@@ -94,6 +94,10 @@ class SaleItemIn(Schema):
     price_overridden_by_id: uuid.UUID | None = None
     discount: DiscountIn | None = None
     promotion_id: uuid.UUID | None = None
+    # Senior citizen / PWD statutory discount on this line (requires sale.statutory_discount).
+    statutory: bool = False
+    vat_exemption: Money = Decimal("0.00")
+    statutory_discount: Money = Decimal("0.00")
     tax_rate_id: uuid.UUID | None = None
     tax_rate: TaxRatePct
     tax_kind: TaxKind
@@ -127,6 +131,17 @@ class SaleTotalsIn(Schema):
     vat_amount: Money
     exempt_sales: Money
     zero_rated_sales: Money
+    vat_exemption_total: Money = Decimal("0.00")
+    statutory_discount_total: Money = Decimal("0.00")
+
+
+class StatutoryDiscountIn(Schema):
+    """Senior citizen / PWD holder details (RA 9994 / RA 10754), printed on the receipt."""
+
+    kind: Literal["SENIOR", "PWD"]
+    id_number: str = Field(min_length=1, max_length=64, description="OSCA or PWD ID number")
+    holder_name: str = Field(min_length=2, max_length=200)
+    holder_tin: str | None = Field(default=None, max_length=32)
 
 
 class SaleCompletePayload(Schema):
@@ -141,6 +156,7 @@ class SaleCompletePayload(Schema):
     prices_include_tax: bool
     occurred_at: datetime
     order_discount: DiscountIn | None = None
+    statutory_discount: StatutoryDiscountIn | None = None
     notes: str | None = Field(default=None, max_length=500)
     items: list[SaleItemIn] = Field(min_length=1, max_length=500)
     payments: list[PaymentIn] = Field(min_length=1, max_length=10)
@@ -255,6 +271,8 @@ class PullResponse(ResponseSchema):
 class SyncContext(ResponseSchema):
     device_id: uuid.UUID
     terminal_code: str
+    # BIR registration of this terminal, printed on receipts and readings.
+    device_bir: dict[str, Any]
     company: dict[str, Any]
     branch: dict[str, Any]
     stock_locations: list[dict[str, Any]]

@@ -26,6 +26,8 @@ export interface SellableItem {
   taxRate: string;
   taxKind: TaxKind;
   trackInventory: boolean;
+  /** Senior citizen / PWD discount may apply (optional in older cart checkpoints). */
+  scPwdEligible?: boolean;
   /** Active prices of the variant (all units/levels/branches); the cart resolves one. */
   prices: LocalPrice[];
 }
@@ -89,6 +91,7 @@ export async function loadSellable(
     taxRate: taxRate?.rate ?? "0",
     taxKind: taxRate?.kind ?? "VATABLE",
     trackInventory: product.trackInventory,
+    scPwdEligible: product.scPwdEligible ?? false,
     prices: prices.filter((p) => p.isActive),
   };
 }
