@@ -1,0 +1,3 @@
+# /etc/cron.d/tindahan-backup — nightly database dump + product photos, 7-day retention (by weekday)
+30 3 * * * postgres pg_dump -Fc tindahan > /var/backups/tindahan/tindahan-$(date +\%a).dump 2>> /var/backups/tindahan/backup.log
+40 3 * * * root tar -czf /var/backups/tindahan/media-$(date +\%a).tar.gz -C /srv/tindahan media 2>> /var/backups/tindahan/backup.log

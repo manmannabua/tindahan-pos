@@ -1,0 +1,24 @@
+[Unit]
+Description=Tindahan POS - Next.js web (admin portal, POS app shell, public catalog)
+After=network.target tindahan-api.service
+
+[Service]
+User=tindahan
+Group=tindahan
+WorkingDirectory=/srv/tindahan/frontend/.next/standalone
+EnvironmentFile=/srv/tindahan/.env
+Environment=NODE_ENV=production PORT=3330 HOSTNAME=127.0.0.1 NEXT_TELEMETRY_DISABLED=1
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=3
+CPUQuota=50%
+MemoryMax=350M
+Nice=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/srv/tindahan/frontend/.next
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,25 @@
+[Unit]
+Description=Tindahan POS - FastAPI (REST, sync, WebSocket)
+After=network.target postgresql.service redis-server.service
+Wants=postgresql.service redis-server.service
+
+[Service]
+User=tindahan
+Group=tindahan
+WorkingDirectory=/srv/tindahan/backend
+EnvironmentFile=/srv/tindahan/.env
+# Two workers x (3 + 2) pooled connections: the shared PostgreSQL allows 40 in total.
+ExecStart=/srv/tindahan/backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8730 --workers 2 --proxy-headers --forwarded-allow-ips 127.0.0.1
+Restart=always
+RestartSec=3
+CPUQuota=60%
+MemoryMax=450M
+Nice=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/srv/tindahan/media /srv/tindahan/var
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

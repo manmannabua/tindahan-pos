@@ -1,0 +1,25 @@
+[Unit]
+Description=Tindahan POS - Celery worker with embedded beat (imports, exports, nightly jobs)
+After=network.target postgresql.service redis-server.service
+Wants=postgresql.service redis-server.service
+
+[Service]
+User=tindahan
+Group=tindahan
+WorkingDirectory=/srv/tindahan/backend
+EnvironmentFile=/srv/tindahan/.env
+# One process runs jobs and the schedule (-B): a demo box does not need separate beat/worker.
+ExecStart=/srv/tindahan/backend/.venv/bin/celery -A app.workers.celery_app worker -B --concurrency 1 -l info --schedule /srv/tindahan/var/celerybeat-schedule
+Restart=always
+RestartSec=5
+CPUQuota=40%
+MemoryMax=300M
+Nice=10
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/srv/tindahan/media /srv/tindahan/var
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
