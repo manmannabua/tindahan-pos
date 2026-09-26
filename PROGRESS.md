@@ -348,3 +348,7 @@ Demo logins (random passwords) in `/root/tindahan-demo.txt` on the VM. Upgrade:
 ## Demo product images (2026-09-26)
 Generated eight illustrative catalog photos with built-in image_gen; optimized 800x800 JPEGs and exact prompts are in assets/demo-products/. Applied to the local and live DEMO company via scripts/apply_demo_images.py and the existing audited image service, preserving existing photos. Verified all eight live image URLs return HTTP 200 image/jpeg. The repeatable script only fills missing images and is scoped to company DEMO. Ruff passes for the script.
 
+
+## Generic POS branding (2026-09-26)
+Generated a teal terminal/checkmark symbol and transparent POS wordmark with built-in image_gen. Masters and prompts: assets/pos-brand/. Added optimized branding, 16/32/48 px ICO favicon, Apple 180 px icon, and 192/512/maskable PWA icons. Sign-in/sidebar and manifest use the new assets; pnpm gen:icons reproduces exports. Previous app artwork is preserved under assets/pos-brand/previous/. Validated dimensions, transparency, lint, typecheck and production build. Changes are local; live deployment is unchanged.
+

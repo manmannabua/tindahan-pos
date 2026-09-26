@@ -12,7 +12,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "gen:api": "openapi-typescript http://localhost:8000/api/v1/openapi.json -o types/openapi.d.ts",
-    "gen:icons": "node scripts/generate-icons.mjs"
+    "gen:icons": "node scripts/export-pos-brand.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

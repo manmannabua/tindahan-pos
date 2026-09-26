@@ -1,6 +1,7 @@
 "use client";
 
-import { ExternalLinkIcon, ReceiptTextIcon } from "lucide-react";
+import { ExternalLinkIcon } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -30,9 +31,8 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-14 shrink-0 items-center gap-2 border-b px-5 font-semibold">
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-          <ReceiptTextIcon className="size-4" />
-        </span>
+        <Image src="/brand/pos-symbol.png" alt="" width={32} height={32}
+          unoptimized className="size-8 shrink-0 rounded-lg" />
         <span className="truncate">{user?.company.name ?? "POS"}</span>
       </div>
 
