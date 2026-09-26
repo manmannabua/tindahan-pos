@@ -11,6 +11,8 @@
 import Big from "big.js";
 import Dexie, { type EntityTable } from "dexie";
 
+import type { ReceiptLine, ReceiptWidth } from "@/lib/printing/receipt";
+
 type UUID = string;
 type DecimalString = string;
 type ISODateTime = string;
@@ -416,6 +418,34 @@ export interface LocalRefund {
   referenceNo: string | null;
 }
 
+/**
+ * Receipt journal (schema v4): every receipt this terminal issued, stored exactly as laid out at
+ * the time — printed or not — plus how often it was printed. Synced to the server (append-only).
+ */
+export type ReceiptPrintState = "NOT_PRINTED" | "PRINTED" | "BROWSER";
+
+export interface LocalReceipt {
+  /** Deterministic: derivedId(saleId | returnId, "RECEIPT"). */
+  id: UUID;
+  kind: "SALE" | "RETURN";
+  number: string;
+  saleId: UUID | null;
+  returnId: UUID | null;
+  issuedAt: ISODateTime;
+  total: DecimalString;
+  cashierName: string;
+  width: ReceiptWidth;
+  lines: ReceiptLine[];
+  /** Rebuilt later from the stored sale (sales made before the journal existed). */
+  reconstructed: boolean;
+  /** PRINTED = confirmed by the thermal printer; BROWSER = sent to the print dialog. */
+  printState: ReceiptPrintState;
+  printCount: number;
+  lastPrintedAt: ISODateTime | null;
+  lastPrintError: string | null;
+  syncStatus: LocalSyncStatus;
+}
+
 // --- Sync ------------------------------------------------------------------------------------
 
 export type OutboxStatus = "PENDING" | "SYNCING" | "SYNCED" | "FAILED" | "CONFLICT";
@@ -474,6 +504,7 @@ export class PosDatabase extends Dexie {
   returns!: EntityTable<LocalReturn, "id">;
   returnItems!: EntityTable<LocalReturnItem, "id">;
   refunds!: EntityTable<LocalRefund, "id">;
+  receipts!: EntityTable<LocalReceipt, "id">;
 
   constructor(name: string = DB_NAME) {
     super(name);
@@ -529,6 +560,11 @@ export class PosDatabase extends Dexie {
           });
         await tx.table("meta").put({ key: "grandTotal", value: total.toFixed(2) });
       });
+    // v4: receipt journal. New table only; existing sales get journal entries lazily
+    // (reconstructed) the first time the Receipts screen opens. Outbox untouched.
+    this.version(4).stores({
+      receipts: "id, number, saleId, returnId, issuedAt, printState, syncStatus",
+    });
   }
 }
 

@@ -23,11 +23,13 @@ import type {
   PosDatabase,
 } from "@/lib/db/schema";
 import { add, compare, multiply, roundMoney, roundQuantity, subtract, toBig, toMoneyString, toQuantityString } from "@/lib/money";
+import type { ReceiptDocument } from "@/lib/printing/receipt";
 import { enqueue, PRIORITY } from "@/lib/sync/outbox";
 import { applyLocalMovement } from "@/lib/sync/reconcile";
 import type { ReturnCreatePayload, SaleLookupResponse, SaleVoidPayload } from "@/types/sync";
 
-import { derivedId } from "./complete-sale";
+import { derivedId } from "./ids";
+import { addReceipt } from "./journal";
 
 export class ReturnVoidError extends Error {
   constructor(message: string) {
@@ -141,6 +143,8 @@ export interface ReturnArgs {
   deviceId: string;
   receiptPrefix: string;
   now?: Date;
+  /** Lay out the return slip; when given, it is stored in the journal in the same transaction. */
+  buildReceipt?: (ret: LocalReturn, items: LocalReturnItem[], refunds: LocalRefund[]) => ReceiptDocument;
 }
 
 /** The parts of a sold line a return needs (local sale item or a looked-up remote one). */
@@ -273,6 +277,8 @@ export interface CreatedReturn {
   items: LocalReturnItem[];
   refunds: LocalRefund[];
   payload: ReturnCreatePayload;
+  /** Journal entry of the return slip (null when no `buildReceipt` was given). */
+  receiptId: string | null;
 }
 
 export async function createReturn(db: PosDatabase, args: ReturnArgs): Promise<CreatedReturn> {
@@ -288,7 +294,7 @@ export async function createReturn(db: PosDatabase, args: ReturnArgs): Promise<C
 
   return db.transaction(
     "rw",
-    [db.meta, db.sales, db.saleItems, db.returns, db.returnItems, db.refunds, db.variants, db.products, db.inventoryMovements, db.inventory, db.outbox],
+    [db.meta, db.sales, db.saleItems, db.returns, db.returnItems, db.refunds, db.variants, db.products, db.inventoryMovements, db.inventory, db.outbox, db.receipts],
     async () => {
       const localSale = args.remote ? undefined : await db.sales.get(args.saleId);
       const saleId = args.remote?.saleId ?? localSale?.id;
@@ -384,8 +390,25 @@ export async function createReturn(db: PosDatabase, args: ReturnArgs): Promise<C
         priority: PRIORITY.RETURN,
         now: args.now,
       });
+      const receipt = args.buildReceipt
+        ? await addReceipt(
+            db,
+            {
+              kind: "RETURN",
+              number: ret.returnNumber,
+              saleId: ret.saleId,
+              returnId: ret.id,
+              issuedAt: ret.occurredAt,
+              total: ret.refundTotal,
+              cashierName: ret.cashierName,
+              doc: args.buildReceipt(ret, items, refunds),
+            },
+            args.deviceId,
+            args.now,
+          )
+        : null;
       await db.meta.put({ key: "returnSeq", value: seq });
-      return { ret, items, refunds, payload };
+      return { ret, items, refunds, payload, receiptId: receipt?.id ?? null };
     },
   );
 }

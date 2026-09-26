@@ -11,14 +11,14 @@ import { getDb, type LocalDiscount, type LocalSale } from "@/lib/db/schema";
 import { compare, formatMoney, subtract } from "@/lib/money";
 import { calculateCart, itemCount } from "@/lib/pos/cart";
 import { completeSale, SaleValidationError, type TenderInput } from "@/lib/pos/complete-sale";
-import { loadReceipt } from "@/lib/pos/receipts";
 import { openCashDrawer } from "@/lib/printing/output";
+import { buildReceipt } from "@/lib/printing/receipt";
 import { triggerSync } from "@/lib/sync/service";
 import { cartSnapshot, useCartStore } from "@/stores/cart-store";
 import { usePosSession } from "@/stores/pos-session-store";
 
 import { useCartCheckpoint } from "../hooks/use-cart-checkpoint";
-import { printWithFeedback } from "../print";
+import { printJournalReceipt } from "../print";
 import { CartTable } from "./cart-table";
 import { CustomerDialog } from "./customer-dialog";
 import { HeldCartsDialog } from "./held-carts-dialog";
@@ -34,7 +34,7 @@ export function SellScreen() {
   const cart = useCartStore();
   const [paying, setPaying] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [completed, setCompleted] = useState<LocalSale | null>(null);
+  const [completed, setCompleted] = useState<{ sale: LocalSale; receiptId: string | null } | null>(null);
   const [showHeld, setShowHeld] = useState(false);
   const [showDiscount, setShowDiscount] = useState(false);
   const [showCustomer, setShowCustomer] = useState(false);
@@ -50,9 +50,8 @@ export function SellScreen() {
   const currency = context.company.currency;
   const calc = totals.calculation;
 
-  const printSale = async (saleId: string, isReprint: boolean, kickDrawer = false) => {
-    const doc = await loadReceipt(getDb(), saleId, context, isReprint);
-    if (doc) await printWithFeedback(doc, context, { kickDrawer });
+  const printSale = async (receiptId: string, kickDrawer = false) => {
+    await printJournalReceipt(receiptId, context, { kickDrawer });
   };
 
   const checkout = async (tenders: TenderInput[]) => {
@@ -68,14 +67,26 @@ export function SellScreen() {
         deviceId: context.device.deviceId,
         receiptPrefix: context.device.receiptPrefix,
         stockLocationId: context.device.defaultStockLocationId,
+        // The receipt goes into the journal with the sale, printed or not.
+        buildReceipt: (sale, items, payments) =>
+          buildReceipt({
+            sale,
+            items,
+            payments,
+            company: context.company,
+            branch: context.branch,
+            terminalCode: context.device.terminalCode,
+            deviceBir: context.deviceBir,
+            width: context.settings.receiptWidth,
+          }),
       });
       useCartStore.getState().clear();
       setPaying(false);
-      setCompleted(result.sale);
+      setCompleted({ sale: result.sale, receiptId: result.receiptId });
       triggerSync(); // background; never awaited
       // Cash (and any method marked "opens drawer") kicks the drawer, together with the receipt.
       const kickDrawer = tenders.some((t) => t.method.opensDrawer);
-      if (context.settings.printReceiptAutomatically) void printSale(result.sale.id, false, kickDrawer);
+      if (context.settings.printReceiptAutomatically && result.receiptId) void printSale(result.receiptId, kickDrawer);
       else if (kickDrawer) void openCashDrawer(context.settings);
     } catch (error) {
       toast.error(error instanceof SaleValidationError ? error.message : `Could not complete the sale: ${String(error)}`);
@@ -206,9 +217,9 @@ export function SellScreen() {
         />
       )}
       <SaleCompleteDialog
-        sale={completed}
+        sale={completed?.sale ?? null}
         currency={currency}
-        onPrint={() => completed && void printSale(completed.id, true)}
+        onPrint={() => completed?.receiptId && void printSale(completed.receiptId)}
         onNext={() => setCompleted(null)}
       />
       <HeldCartsDialog open={showHeld} onClose={() => setShowHeld(false)} />

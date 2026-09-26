@@ -5,7 +5,7 @@
  * the inventory snapshot, the `sale.complete` outbox operation and the receipt sequence. If the
  * browser dies halfway, IndexedDB rolls everything back; the cart checkpoint still exists.
  */
-import { v5 as uuidv5, v7 as uuidv7 } from "uuid";
+import { v7 as uuidv7 } from "uuid";
 
 import { getMeta } from "@/lib/db/meta";
 import type {
@@ -18,18 +18,16 @@ import type {
 } from "@/lib/db/schema";
 import { add, multiply, roundQuantity, subtract, toMoneyString, toQuantityString } from "@/lib/money";
 import { settlePayments } from "@/lib/money/sale-calculation";
+import type { ReceiptDocument } from "@/lib/printing/receipt";
 import { applyLocalMovement } from "@/lib/sync/reconcile";
 import { enqueue, PRIORITY } from "@/lib/sync/outbox";
 import type { DiscountPayload, SaleCompletePayload } from "@/types/sync";
 
 import { calculateCart, isStatutoryLine, lineDiscountFor, unitPrice, type Cart } from "./cart";
+import { derivedId } from "./ids";
+import { addReceipt } from "./journal";
 
-/** Same namespace as backend app/shared/ids.py: `derived_id(source, purpose)`. */
-export const POS_NAMESPACE = "6f1c8a52-3d4e-4b7a-9c1e-2a5b8d0f4e11";
-
-export function derivedId(source: string, purpose: string): string {
-  return uuidv5(`${source}:${purpose}`, POS_NAMESPACE);
-}
+export { derivedId, POS_NAMESPACE } from "./ids";
 
 export interface TenderInput {
   method: LocalPaymentMethod;
@@ -52,6 +50,11 @@ export interface CompleteSaleArgs {
   stockLocationId: string;
   notes?: string | null;
   now?: Date;
+  /**
+   * Lay out the receipt (header data comes from the terminal context). When given, the receipt
+   * is stored in the journal in the same transaction as the sale.
+   */
+  buildReceipt?: (sale: LocalSale, items: LocalSaleItem[], payments: LocalPayment[]) => ReceiptDocument;
 }
 
 export class SaleValidationError extends Error {
@@ -74,6 +77,8 @@ export interface CompletedSale {
   items: LocalSaleItem[];
   payments: LocalPayment[];
   payload: SaleCompletePayload;
+  /** Journal entry of the receipt (null when no `buildReceipt` was given). */
+  receiptId: string | null;
 }
 
 export async function completeSale(db: PosDatabase, args: CompleteSaleArgs): Promise<CompletedSale> {
@@ -158,7 +163,7 @@ export async function completeSale(db: PosDatabase, args: CompleteSaleArgs): Pro
 
   return db.transaction(
     "rw",
-    [db.meta, db.sales, db.saleItems, db.payments, db.inventoryMovements, db.inventory, db.outbox, db.activeCart],
+    [db.meta, db.sales, db.saleItems, db.payments, db.inventoryMovements, db.inventory, db.outbox, db.activeCart, db.receipts],
     async () => {
       const seq = ((await getMeta(db, "receiptSeq")) ?? 0) + 1;
       const receiptNumber = formatReceiptNumber(args.receiptPrefix, seq);
@@ -213,12 +218,29 @@ export async function completeSale(db: PosDatabase, args: CompleteSaleArgs): Pro
         priority: PRIORITY.SALE,
         now: args.now,
       });
+      const receipt = args.buildReceipt
+        ? await addReceipt(
+            db,
+            {
+              kind: "SALE",
+              number: sale.receiptNumber,
+              saleId: sale.id,
+              returnId: null,
+              issuedAt: sale.occurredAt,
+              total: sale.total,
+              cashierName: sale.cashierName,
+              doc: args.buildReceipt(sale, items, payments),
+            },
+            args.deviceId,
+            args.now,
+          )
+        : null;
       await db.meta.put({ key: "receiptSeq", value: seq });
       // Accumulated grand total (BIR readings): non-resettable, updated with the sale itself.
       const grand = ((await getMeta(db, "grandTotal")) as string | undefined) ?? "0";
       await db.meta.put({ key: "grandTotal", value: toMoneyString(add(grand, sale.total)) });
       await db.activeCart.delete("current");
-      return { sale, items, payments, payload };
+      return { sale, items, payments, payload, receiptId: receipt?.id ?? null };
     },
   );
 }

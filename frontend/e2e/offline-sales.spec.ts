@@ -6,10 +6,11 @@
  */
 import { expect, test } from "@playwright/test";
 
-import { balances, reviewFlags, saleDetail, salesForDevice, seedCompany } from "./support/api";
+import { API_URL, balances, reviewFlags, saleDetail, salesForDevice, seedCompany } from "./support/api";
 import {
   bringApiBack,
   localCounts,
+  type LocalCounts,
   openCashSession,
   pay,
   pinLogin,
@@ -60,11 +61,18 @@ test("20 offline sales survive a restart and sync exactly once", async ({ page }
   }
   await expect(page.getByRole("status")).toContainText("OFFLINE");
 
+  // cash_session.open (may have synced before the API went down) + 20 × sale.complete, and
+  // each sale's receipt in the journal (receipt.issue) plus its automatic print (receipt.print).
+  const expectOutbox = (counts: LocalCounts) => {
+    expect(counts.ops["cash_session.open"]).toBe(1);
+    expect(counts.ops["sale.complete"]).toBe(20);
+    expect(counts.ops["receipt.issue"]).toBe(20);
+    expect(counts.ops["receipt.print"] ?? 0).toBeLessThanOrEqual(20);
+  };
   let local = await localCounts(page);
   expect(local.sales).toBe(20);
-  // cash_session.open (may have synced before the API went down) + 20 × sale.complete
-  expect(local.outboxPending + local.outboxSynced).toBe(21);
-  expect(local.outboxPending).toBeGreaterThanOrEqual(20);
+  expectOutbox(local);
+  expect(local.outboxPending).toBeGreaterThanOrEqual(40);
 
   // --- Restart the app (API still down) --------------------------------------------------
   await page.reload();
@@ -73,7 +81,7 @@ test("20 offline sales survive a restart and sync exactly once", async ({ page }
   await expect(page.getByTestId("sale-row")).toHaveCount(20);
   local = await localCounts(page);
   expect(local.sales).toBe(20);
-  expect(local.outboxPending + local.outboxSynced).toBe(21);
+  expectOutbox(local);
 
   // --- FastAPI is back ------------------------------------------------------------------------
   await bringApiBack(page);
@@ -110,7 +118,15 @@ test("20 offline sales survive a restart and sync exactly once", async ({ page }
   await page.getByRole("button", { name: "Sync now" }).click();
   await expect(page.getByText("Everything is synced.")).toBeVisible();
   expect((await salesForDevice(company.token, deviceId)).total).toBe(20);
-  expect((await localCounts(page)).outboxSynced).toBe(21);
+  const after = await localCounts(page);
+  expect(after.outboxPending).toBe(0);
+  expect(after.outboxSynced).toBe(Object.values(after.ops).reduce((a, b) => a + b, 0));
+  expectOutbox(after);
+  // Every sale's receipt is in the server journal, exactly once.
+  const journal = await fetch(`${API_URL}/receipts?device_id=${deviceId}&limit=100`, {
+    headers: { Authorization: `Bearer ${company.token}`, "X-Requested-With": "pos" },
+  });
+  expect(((await journal.json()) as { total: number }).total).toBe(20);
 });
 
 test("two offline terminals oversell the same stock: both sales kept, negative stock flagged", async ({ browser }) => {

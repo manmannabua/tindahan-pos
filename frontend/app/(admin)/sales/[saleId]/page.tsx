@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeftIcon, BanIcon, TriangleAlertIcon, Undo2Icon } from "lucide-react";
+import { ArrowLeftIcon, BanIcon, ReceiptTextIcon, TriangleAlertIcon, Undo2Icon } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
@@ -19,6 +19,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { usePermission } from "@/features/auth/hooks";
 import { useBranchLabels } from "@/features/branches/api";
 import { useLabels } from "@/features/catalog/api";
+import { useReceipts } from "@/features/receipts/api";
+import { ReceiptViewerDialog } from "@/features/receipts/components/receipt-viewer-dialog";
 import { useSale, useVoidSale } from "@/features/sales/api";
 import { ReturnDialog } from "@/features/sales/components/return-dialog";
 import { ADMIN_PERM } from "@/features/shell/permissions";
@@ -47,6 +49,9 @@ export default function SaleDetailPage() {
   const [voiding, setVoiding] = useState(false);
   const [voidReason, setVoidReason] = useState("");
   const [returning, setReturning] = useState(false);
+  const [viewing, setViewing] = useState<string | null>(null);
+  const receipts = useReceipts({ sale_id: saleId, kind: "SALE", limit: 1, offset: 0 }, Boolean(saleId));
+  const saleReceipt = receipts.data?.items[0];
 
   if (isPending) return <TableSkeleton />;
   if (error) return <QueryError error={error} onRetry={() => void refetch()} />;
@@ -63,6 +68,11 @@ export default function SaleDetailPage() {
         actions={
           <>
             <Badge variant={completed ? "secondary" : "destructive"}>{humanize(sale.status)}</Badge>
+            {saleReceipt && (
+              <Button variant="outline" onClick={() => setViewing(saleReceipt.id)}>
+                <ReceiptTextIcon /> View receipt
+              </Button>
+            )}
             {completed && canReturn && (
               <Button variant="outline" onClick={() => setReturning(true)}>
                 <Undo2Icon /> Return items
@@ -201,6 +211,7 @@ export default function SaleDetailPage() {
         </DialogContent>
       </Dialog>
       {returning && <ReturnDialog sale={sale} onClose={() => setReturning(false)} onDone={(id) => router.push(`/sales/returns/${id}`)} />}
+      <ReceiptViewerDialog receiptId={viewing} onClose={() => setViewing(null)} />
     </>
   );
 }

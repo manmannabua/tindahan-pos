@@ -26,7 +26,7 @@ BRANCH_FIELDS = {"id", "name", "address", "phone", "synced_at"}
 CATEGORY_FIELDS = {"id", "name", "product_count"}
 PAGE_FIELDS = {"items", "total", "limit", "offset", "branch_id", "synced_at"}
 CARD_FIELDS = {
-    "id", "name", "brand", "category", "image_url", "unit", "price", "price_varies",
+    "id", "name", "brand", "category", "image_url", "unit", "unit_symbol", "price", "price_varies",
     "availability", "quantity", "variant_count",
 }  # fmt: skip
 DETAIL_FIELDS = CARD_FIELDS | {"description", "variants"}
@@ -340,3 +340,24 @@ async def test_public_responses_are_cacheable_and_rate_limited(
     monkeypatch.setattr(storefront_router, "PUBLIC_RATE_LIMIT_PER_MINUTE", 3)
     statuses = [(await client.get(f"{BASE}/acme")).status_code for _ in range(4)]
     assert statuses[-1] == 429
+
+
+async def test_measured_units_carry_a_symbol(client: AsyncClient, db: AsyncSession) -> None:
+    tenant = await signup(client)
+    location = await default_location(client, tenant.headers, tenant.branch_id)
+    units = {
+        u["code"]: u["id"]
+        for u in (await client.get("/api/v1/units", headers=tenant.headers)).json()
+    }
+    rice = await create_product(
+        client, tenant.headers, name="Rice", barcode=None, extra={"base_unit_id": units["KG"]}
+    )
+    soap = await create_product(client, tenant.headers, name="Soap", barcode=None)
+    await stock(db, tenant, location, rice, "12.5")
+    await show_online(client, tenant, rice, soap)
+    await publish_store(client, tenant, stock_display="QUANTITY")
+
+    cards = {c["name"]: c for c in await items(client)}
+    assert (cards["Rice"]["unit"], cards["Rice"]["unit_symbol"]) == ("Kilogram", "kg")
+    assert cards["Rice"]["quantity"] == "12.500"
+    assert (cards["Soap"]["unit"], cards["Soap"]["unit_symbol"]) == ("Piece", None)

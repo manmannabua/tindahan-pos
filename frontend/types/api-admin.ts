@@ -88,3 +88,7 @@ export type Storefront = S["StorefrontRead"];
 export type StorefrontUpdate = S["StorefrontUpdate"];
 export type StockDisplay = S["StockDisplay"];
 export type ProductsOnlineUpdate = S["ProductsOnlineUpdate"];
+
+// Receipt journal (virtual receipts)
+export type SalesReceiptSummary = S["SalesReceiptSummary"];
+export type SalesReceipt = S["SalesReceiptRead"];

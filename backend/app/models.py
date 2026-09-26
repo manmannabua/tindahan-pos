@@ -34,6 +34,7 @@ from app.modules.purchasing.models import (
     PurchaseOrder,
     PurchaseOrderLine,
 )
+from app.modules.receipts.models import Receipt, ReceiptPrint
 from app.modules.reporting.models import ReportExport
 from app.modules.returns.models import Refund, ReturnItem, SaleReturn
 from app.modules.review_flags.models import ReviewFlag
@@ -76,6 +77,8 @@ __all__ = [
     "Promotion",
     "PurchaseOrder",
     "PurchaseOrderLine",
+    "Receipt",
+    "ReceiptPrint",
     "RefreshToken",
     "Refund",
     "ReportExport",

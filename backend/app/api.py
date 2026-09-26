@@ -23,6 +23,7 @@ from app.modules.products.router import router as products_router
 from app.modules.promotions.router import router as promotions_router
 from app.modules.purchasing.router import router as purchasing_router
 from app.modules.realtime.router import router as realtime_router
+from app.modules.receipts.router import router as receipts_router
 from app.modules.reporting.router import router as reporting_router
 from app.modules.returns.router import router as returns_router
 from app.modules.review_flags.router import router as review_flags_router
@@ -59,6 +60,7 @@ for r in (
     purchasing_router,
     customers_router,
     returns_router,
+    receipts_router,
     promotions_router,
     expenses_router,
     reporting_router,

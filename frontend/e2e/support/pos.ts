@@ -57,7 +57,16 @@ export async function pay(page: Page, tenders: Tender[]): Promise<void> {
 }
 
 /** Counts of IndexedDB rows in the terminal database. */
-export async function localCounts(page: Page): Promise<{ sales: number; outboxPending: number; outboxSynced: number; deviceId: string }> {
+export interface LocalCounts {
+  sales: number;
+  outboxPending: number;
+  outboxSynced: number;
+  /** Outbox rows per operation (e.g. "sale.complete", "receipt.issue"). */
+  ops: Record<string, number>;
+  deviceId: string;
+}
+
+export async function localCounts(page: Page): Promise<LocalCounts> {
   return page.evaluate(
     () =>
       new Promise((resolve, reject) => {
@@ -66,12 +75,13 @@ export async function localCounts(page: Page): Promise<{ sales: number; outboxPe
         open.onsuccess = () => {
           const db = open.result;
           const tx = db.transaction(["sales", "outbox", "meta"], "readonly");
-          const out = { sales: 0, outboxPending: 0, outboxSynced: 0, deviceId: "" };
+          const out = { sales: 0, outboxPending: 0, outboxSynced: 0, ops: {} as Record<string, number>, deviceId: "" };
           tx.objectStore("sales").count().onsuccess = (e) => {
             out.sales = (e.target as IDBRequest<number>).result;
           };
           tx.objectStore("outbox").getAll().onsuccess = (e) => {
-            const rows = (e.target as IDBRequest<{ status: string }[]>).result;
+            const rows = (e.target as IDBRequest<{ status: string; operation: string }[]>).result;
+            for (const r of rows) out.ops[r.operation] = (out.ops[r.operation] ?? 0) + 1;
             out.outboxPending = rows.filter((r) => r.status === "PENDING" || r.status === "SYNCING").length;
             out.outboxSynced = rows.filter((r) => r.status === "SYNCED").length;
           };

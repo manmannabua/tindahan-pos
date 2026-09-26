@@ -19,9 +19,22 @@ const AVAILABILITY: Record<Availability, { label: string; className: string }> =
   OUT_OF_STOCK: { label: "Out of stock", className: "bg-muted text-muted-foreground" },
 };
 
-export function AvailabilityBadge({ availability, quantity }: { availability: Availability; quantity?: string | null }) {
+/** "12 left", or with the unit for measured goods: "2.5 kg left". */
+export function quantityText(quantity: string, unitSymbol: string | null | undefined): string {
+  return `${qty(quantity)}${unitSymbol ? ` ${unitSymbol}` : ""} left`;
+}
+
+export function AvailabilityBadge({
+  availability,
+  quantity,
+  unitSymbol,
+}: {
+  availability: Availability;
+  quantity?: string | null;
+  unitSymbol?: string | null;
+}) {
   const { label, className } = AVAILABILITY[availability];
-  const text = quantity != null && availability !== "OUT_OF_STOCK" ? `${qty(quantity)} left` : label;
+  const text = quantity != null && availability !== "OUT_OF_STOCK" ? quantityText(quantity, unitSymbol) : label;
   return (
     <Badge variant="secondary" className={className}>
       {text}
@@ -29,10 +42,14 @@ export function AvailabilityBadge({ availability, quantity }: { availability: Av
   );
 }
 
-/** "₱52.00", "₱52.00 / kilogram", "from ₱75.00". The unit is omitted for plain pieces. */
-export function priceText(price: string, unit: string, varies: boolean): string {
-  const perUnit = unit && !["piece", "pc", "pcs", "pieces"].includes(unit.toLowerCase()) ? ` / ${unit.toLowerCase()}` : "";
-  return `${varies ? "from " : ""}${money(price)}${perUnit}`;
+/**
+ * "₱52.00 / kg" for measured goods (unit symbol), "₱180.00 / box" for other non-piece units,
+ * "₱75.00" for pieces; "from …" when variants are priced differently.
+ */
+export function priceText(price: string, unit: { unit: string; unit_symbol?: string | null }, varies: boolean): string {
+  const name = unit.unit.toLowerCase();
+  const per = unit.unit_symbol ?? (name && !["piece", "pc", "pcs", "pieces"].includes(name) ? name : null);
+  return `${varies ? "from " : ""}${money(price)}${per ? ` / ${per}` : ""}`;
 }
 
 export function ProductCard({ product, onOpen }: { product: PublicProduct; onOpen: () => void }) {
@@ -53,9 +70,11 @@ export function ProductCard({ product, onOpen }: { product: PublicProduct; onOpe
         <span className="line-clamp-2 text-sm leading-snug font-medium">{product.name}</span>
         <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-2">
           {product.price != null && (
-            <span className="text-sm font-semibold tabular-nums">{priceText(product.price, product.unit, product.price_varies)}</span>
+            <span className="text-sm font-semibold tabular-nums">{priceText(product.price, product, product.price_varies)}</span>
           )}
-          {product.availability && <AvailabilityBadge availability={product.availability} quantity={product.quantity} />}
+          {product.availability && (
+            <AvailabilityBadge availability={product.availability} quantity={product.quantity} unitSymbol={product.unit_symbol} />
+          )}
         </div>
       </div>
     </button>
@@ -105,9 +124,9 @@ export function ProductDetailDialog({
                     <span>{v.name ?? (data.variants.length === 1 ? "Price" : "Regular")}</span>
                     <span className="flex items-center gap-2">
                       {v.price != null && (
-                        <span className="font-semibold tabular-nums">{priceText(v.price, data.unit, false)}</span>
+                        <span className="font-semibold tabular-nums">{priceText(v.price, data, false)}</span>
                       )}
-                      {v.availability && <AvailabilityBadge availability={v.availability} quantity={v.quantity} />}
+                      {v.availability && <AvailabilityBadge availability={v.availability} quantity={v.quantity} unitSymbol={data.unit_symbol} />}
                     </span>
                   </li>
                 ))}

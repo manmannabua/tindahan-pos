@@ -66,10 +66,27 @@ counter.
 > terminal) is a formal process with BIR; the fields and reports here are what that process
 > typically inspects.
 
-## 5. Reprint
+## 5. Receipt journal ("virtual receipts") and reprints
 
-Reprints read the sale from IndexedDB (or from the API for older sales when online), render
-with `isReprint = true`, and record an audit event `sale.receipt_reprinted`.
+Every receipt a terminal issues is stored **as issued** — the laid-out `ReceiptLine[]`, not
+re-rendered later — whether it was printed or not:
+
+- **Terminal:** `receipts` table (Dexie v4), written by `addReceipt` inside the same transaction
+  as the sale or return (`completeSale` / `createReturn` take a `buildReceipt` callback), so a
+  sale can never exist without its receipt. The id is `derivedId(saleId | returnId, "RECEIPT")`.
+- **Printing** (`printFromJournal`) always prints the stored copy. The first print is the
+  original; later ones get `*** REPRINT ***` after the header. Each print updates the local
+  state (`NOT_PRINTED` → `BROWSER` "sent to the print dialog" / `PRINTED` "confirmed by the
+  thermal printer") and queues a `receipt.print` event.
+- **Server:** `receipts` + `receipt_prints`, both **append-only** (database trigger), filled only
+  by sync (`receipt.issue`, `receipt.print`). Print counts are derived from the print log. This
+  is the electronic journal BIR expects a POS to keep.
+- **Where to see them:** POS → *Receipts* (works offline: search, "Not printed" filter, virtual
+  receipt, Print / Reprint) and admin → *Sales → Receipts* (all terminals, print history, a
+  back-office "Print copy" marked `*** COPY ***`, which is not counted as a terminal print), also
+  *View receipt* on a sale.
+- Sales made before the journal existed get entries the first time the Receipts screen opens
+  (`ensureJournal`), marked `reconstructed` because they are rebuilt from today's header data.
 
 ## 6. Cash drawer
 

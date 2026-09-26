@@ -38,6 +38,8 @@ from app.modules.payments.models import Payment, PaymentKind, PaymentMethod
 from app.modules.pricing.models import PriceLevel
 from app.modules.products.models import Product, ProductUnit, ProductVariant
 from app.modules.promotions.models import Promotion
+from app.modules.receipts.models import PrintMethod, Receipt, ReceiptKind, ReceiptPrint
+from app.modules.returns.models import SaleReturn
 from app.modules.returns.service import (
     RefundInput,
     ReturnInput,
@@ -63,6 +65,8 @@ from app.modules.sync.schemas import (
     CashSessionOpenPayload,
     CustomerUpsertPayload,
     DiscountIn,
+    ReceiptIssuePayload,
+    ReceiptPrintPayload,
     ReturnCreatePayload,
     SaleCompletePayload,
     SaleVoidPayload,
@@ -831,9 +835,88 @@ async def create_return_op(ctx: OpContext, payload: dict[str, Any]) -> dict[str,
     return {"return_id": str(sale_return.id), "refund_total": str(sale_return.refund_total)}
 
 
+async def issue_receipt(ctx: OpContext, payload: dict[str, Any]) -> dict[str, Any]:
+    """Store a receipt in the journal exactly as the terminal issued it (append-only)."""
+    data = parse(ReceiptIssuePayload, payload)
+    if data.kind == ReceiptKind.SALE:
+        if data.sale_id is None:
+            raise Rejected("sync.invalid_payload", "A sale receipt needs sale_id")
+        sale = await _own_sale(ctx, data.sale_id)
+        device_id: uuid.UUID | None = sale.device_id
+        branch_id, number = sale.branch_id, sale.receipt_number
+    else:
+        if data.return_id is None:
+            raise Rejected("sync.invalid_payload", "A return receipt needs return_id")
+        sale_return = await ctx.db.get(SaleReturn, data.return_id)
+        if sale_return is None:
+            raise Deferred("sync.return_missing", "The return has not been synced yet")
+        if sale_return.company_id != ctx.company_id:
+            raise Rejected("sync.foreign_return", "Return belongs to another company")
+        device_id, branch_id = sale_return.device_id, sale_return.branch_id
+        number = sale_return.return_number
+    if device_id != ctx.device.id:
+        raise Rejected("sync.foreign_receipt", "Receipts are issued by the terminal that sold")
+    if number != data.number:
+        raise Rejected("sync.receipt_mismatch", "Receipt number does not match the record")
+    existing = await ctx.db.scalar(
+        select(Receipt.id).where(
+            Receipt.device_id == ctx.device.id,
+            Receipt.kind == data.kind,
+            Receipt.number == data.number,
+        )
+    )
+    if existing is not None:
+        raise Rejected("sync.receipt_exists", "This receipt is already in the journal")
+    ctx.db.add(
+        Receipt(
+            id=data.id,
+            company_id=ctx.company_id,
+            branch_id=branch_id,
+            device_id=ctx.device.id,
+            kind=data.kind,
+            number=data.number,
+            sale_id=data.sale_id,
+            return_id=data.return_id,
+            issued_at=data.issued_at,
+            width=data.width,
+            lines=[line.model_dump(exclude_none=True) for line in data.lines],
+            total=data.total,
+            cashier_name=data.cashier_name,
+            reconstructed=data.reconstructed,
+        )
+    )
+    await ctx.db.flush()
+    return {"receipt_id": str(data.id)}
+
+
+async def record_receipt_print(ctx: OpContext, payload: dict[str, Any]) -> dict[str, Any]:
+    """One print (or reprint) of a journal receipt."""
+    data = parse(ReceiptPrintPayload, payload)
+    receipt = await ctx.db.get(Receipt, data.receipt_id)
+    if receipt is None:
+        raise Deferred("sync.receipt_missing", "The receipt has not been synced yet")
+    if receipt.company_id != ctx.company_id:
+        raise Rejected("sync.foreign_receipt", "Receipt belongs to another company")
+    ctx.db.add(
+        ReceiptPrint(
+            id=data.id,
+            company_id=ctx.company_id,
+            receipt_id=receipt.id,
+            device_id=ctx.device.id,
+            printed_at=data.printed_at,
+            method=PrintMethod(data.method),
+            is_reprint=data.is_reprint,
+            fallback_reason=data.fallback_reason,
+        )
+    )
+    await ctx.db.flush()
+    return {"print_id": str(data.id)}
+
+
 # Priorities are assigned by the terminal (docs/SYNC_PROTOCOL.md §2); listed here for reference:
 # customer.upsert 8, cash_session.open 5, sale.complete 10, sale.void 15,
-# cash_movement.record / cash_session.close 40, return.create 50.
+# cash_movement.record / cash_session.close 40, return.create 50, receipt.issue 55,
+# receipt.print 58.
 async def _product_eligible(db: AsyncSession, product_id: uuid.UUID) -> bool:
     return bool(await db.scalar(select(Product.sc_pwd_eligible).where(Product.id == product_id)))
 
@@ -846,4 +929,6 @@ HANDLERS: dict[str, HandlerSpec] = {
     "sale.void": HandlerSpec("sale", void_sale_op),
     "return.create": HandlerSpec("return", create_return_op),
     "customer.upsert": HandlerSpec("customer", upsert_customer),
+    "receipt.issue": HandlerSpec("receipt", issue_receipt),
+    "receipt.print": HandlerSpec("receipt_print", record_receipt_print),
 }

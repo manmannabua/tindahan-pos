@@ -237,6 +237,40 @@ class ReturnCreatePayload(Schema):
     refunds: list[RefundPayload] = Field(min_length=1, max_length=10)
 
 
+class ReceiptLineIn(Schema):
+    """One laid-out receipt line (frontend `ReceiptLine`), stored verbatim in the journal."""
+
+    kind: Literal["center", "text", "pair", "rule", "barcode"]
+    text: str | None = Field(default=None, max_length=200)
+    left: str | None = Field(default=None, max_length=200)
+    right: str | None = Field(default=None, max_length=200)
+    value: str | None = Field(default=None, max_length=64)
+    bold: bool | None = None
+
+
+class ReceiptIssuePayload(Schema):
+    id: uuid.UUID
+    kind: Literal["SALE", "RETURN"]
+    number: str = Field(min_length=1, max_length=40)
+    sale_id: uuid.UUID | None = None
+    return_id: uuid.UUID | None = None
+    issued_at: datetime
+    width: Literal[58, 80]
+    lines: list[ReceiptLineIn] = Field(min_length=1, max_length=600)
+    total: Money
+    cashier_name: str = Field(min_length=1, max_length=200)
+    reconstructed: bool = False
+
+
+class ReceiptPrintPayload(Schema):
+    id: uuid.UUID  # the print event
+    receipt_id: uuid.UUID
+    printed_at: datetime
+    method: Literal["ESCPOS", "BROWSER"]
+    is_reprint: bool
+    fallback_reason: str | None = Field(default=None, max_length=300)
+
+
 # --- Pull ----------------------------------------------------------------------------------
 
 

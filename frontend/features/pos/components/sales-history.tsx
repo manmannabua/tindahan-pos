@@ -11,13 +11,13 @@ import { getDeviceClient } from "@/lib/device";
 import { useLiveQuery } from "@/hooks/use-live-query";
 import { getDb, type LocalSale } from "@/lib/db/schema";
 import { formatMoney } from "@/lib/money";
-import { loadReceipt } from "@/lib/pos/receipts";
+import { ensureJournal, journalId } from "@/lib/pos/journal";
 import { findSaleForReturn } from "@/lib/pos/sale-lookup";
 import { useTerminalStore } from "@/stores/terminal-store";
 
 import { usePosSession } from "@/stores/pos-session-store";
 
-import { printWithFeedback } from "../print";
+import { printJournalReceipt } from "../print";
 import { ReturnDialog, type ReturnTarget } from "./return-dialog";
 import { VoidDialog } from "./void-dialog";
 
@@ -45,9 +45,15 @@ export function SalesHistory() {
   const online = useTerminalStore((s) => s.connectivity) !== "offline";
   if (!context) return null;
 
+  // Reprints come from the receipt journal (the stored copy); older sales get an entry first.
   const reprint = async (saleId: string) => {
-    const doc = await loadReceipt(getDb(), saleId, context, true);
-    if (doc) await printWithFeedback(doc, context);
+    const db = getDb();
+    let receipt = await db.receipts.get(journalId(saleId));
+    if (!receipt) {
+      await ensureJournal(db, context);
+      receipt = await db.receipts.get(journalId(saleId));
+    }
+    if (receipt) await printJournalReceipt(receipt.id, context, { reprint: true });
   };
 
   const findReceipt = async () => {

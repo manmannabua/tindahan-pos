@@ -13,6 +13,7 @@ import {
   MonitorSmartphoneIcon,
   PackageIcon,
   PercentIcon,
+  ReceiptIcon,
   ReceiptTextIcon,
   RefreshCwIcon,
   SettingsIcon,
@@ -54,6 +55,7 @@ export const NAV_ITEMS: NavItem[] = [
   { section: "Overview", href: "/reports", label: "Reports", icon: BarChart3Icon, permission: ADMIN_PERM.REPORTS_VIEW },
 
   { section: "Sales", href: "/sales", label: "Sales", icon: ReceiptTextIcon, permission: ADMIN_PERM.SALES_VIEW },
+  { section: "Sales", href: "/receipts", label: "Receipts", icon: ReceiptIcon, permission: ADMIN_PERM.SALES_VIEW },
   { section: "Sales", href: "/customers", label: "Customers", icon: ContactIcon, permission: ADMIN_PERM.CUSTOMERS_READ },
   { section: "Sales", href: "/promotions", label: "Promotions", icon: PercentIcon, permission: ADMIN_PERM.PRODUCTS_READ },
 

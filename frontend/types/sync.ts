@@ -507,3 +507,35 @@ export interface SaleLookupResponse {
   /** Amount already refunded per sale item (absent on older servers). */
   refunded_amounts?: Record<string, string>;
 }
+
+/** receipt.issue — one journal entry (backend ReceiptIssuePayload). */
+export interface ReceiptIssuePayload {
+  id: string;
+  kind: "SALE" | "RETURN";
+  number: string;
+  sale_id: string | null;
+  return_id: string | null;
+  issued_at: string;
+  width: 58 | 80;
+  lines: {
+    kind: "center" | "text" | "pair" | "rule" | "barcode";
+    text?: string;
+    left?: string;
+    right?: string;
+    value?: string;
+    bold?: boolean;
+  }[];
+  total: string;
+  cashier_name: string;
+  reconstructed: boolean;
+}
+
+/** receipt.print — one print or reprint (backend ReceiptPrintPayload). */
+export interface ReceiptPrintPayload {
+  id: string;
+  receipt_id: string;
+  printed_at: string;
+  method: "ESCPOS" | "BROWSER";
+  is_reprint: boolean;
+  fallback_reason: string | null;
+}

@@ -21,6 +21,8 @@ export const PRIORITY = {
   INVENTORY: 30,
   CASH: 40,
   RETURN: 50,
+  RECEIPT: 55,
+  RECEIPT_PRINT: 58,
   OTHER: 60,
 } as const;
 

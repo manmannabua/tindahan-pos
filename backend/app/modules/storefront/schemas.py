@@ -156,6 +156,9 @@ class PublicProduct(ResponseSchema):
     category: str | None
     image_url: str | None
     unit: str = Field(description="Base unit name, e.g. 'piece' or 'kilogram'")
+    unit_symbol: str | None = Field(
+        description="'kg', 'g', 'l', … for measured (decimal) units; null for counted items"
+    )
     price: Decimal | None = Field(description="Lowest variant price; null when prices are hidden")
     price_varies: bool
     availability: Availability | None = Field(description="Null when stock is hidden")

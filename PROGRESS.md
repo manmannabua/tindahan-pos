@@ -216,10 +216,22 @@ Last updated: 2026-09-26
   and 10 s micro-cache for `/api/v1/public/`, credentials stripped.
 - The POS service worker is not registered on `/s/` pages.
 
-**Current checks (all green):** backend `pytest` 157 · ruff · mypy strict. Frontend lint ·
-typecheck · 253 Vitest · build · **9/9 Playwright** (admin, catalog→PO→report export, offline
-20-sale critical test, two-terminal oversell, Phase 7 offline promo/customer/void/return, offline
-SC sale + cross-terminal return, online catalog publish→shopper→stock out, smoke).
+### Receipt journal ("virtual receipts") ✅ (docs/RECEIPT_PRINTING.md §5)
+- Every receipt (sales and return slips) is stored exactly as issued — printed or not — in the
+  terminal's journal (Dexie v4, same transaction as the sale), with print state and count, and
+  synced (`receipt.issue`, `receipt.print`) to append-only `receipts` / `receipt_prints` tables.
+- POS → *Receipts*: offline list, "Not printed" / "Returns" filters, on-screen receipt (same
+  32/48-column layout + barcode), Print / Reprint from the stored copy. Admin → *Sales →
+  Receipts* (filters: dates, branch, printed, type) with viewer + print history; *View receipt*
+  on sale detail. Older local sales get `reconstructed` entries on first open.
+- Prints trigger an immediate sync. Online catalog: measured units show their symbol
+  ("₱52.00 / kg", "100 kg left"; `unit_symbol` in the public API).
+
+**Current checks (all green):** backend `pytest` 163 · ruff · mypy strict. Frontend lint ·
+typecheck · 259 Vitest · build · **10/10 Playwright** (admin, catalog→PO→report export, offline
+20-sale critical test incl. one journal entry per sale, two-terminal oversell, Phase 7 offline
+promo/customer/void/return, offline SC sale + cross-terminal return, online catalog, offline
+receipt journal + reprint → server, smoke).
 
 ## Next (suggested)
 1. Deploy a staging VM with `docker-compose.prod.yml` (never run yet: no Docker on the dev
@@ -290,7 +302,7 @@ SC sale + cross-terminal return, online catalog publish→shopper→stock out, s
   sync → server check; `TERMINAL=T02` for a second terminal). Screenshots per step.
 
 ## Pending migrations
-- None pending. Latest: `5f5a4551ceb3` storefronts + `products.show_online` (before it: `e1c3cb7b756c` SC/PWD discount + BIR fields, `ff379da3c120` import jobs + trigram search). Revisions (in order): `ef8f6c10c69c` foundation, `1e3cfbdadecb` catalog and
+- None pending. Latest: `fbaf8685d085` receipt journal (before it: `5f5a4551ceb3` storefronts + `products.show_online`, `e1c3cb7b756c` SC/PWD discount + BIR fields, `ff379da3c120` import jobs + trigram search). Revisions (in order): `ef8f6c10c69c` foundation, `1e3cfbdadecb` catalog and
   inventory ledger, `43cc34f6bf79` sales/payments/cash sessions/sync, `311a2c40e3d3` inventory
   documents, `34f69fa13fd1` suppliers and purchasing, `428f5d187452` customers/returns/
   promotions, `c5a1c4ea7bf5` expenses and report exports. Run `uv run alembic upgrade head`.

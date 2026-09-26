@@ -179,11 +179,12 @@ export class SyncEngine {
         result.synced += 1;
         await this.db.transaction(
           "rw",
-          [this.db.outbox, this.db.sales, this.db.returns, this.db.inventoryMovements],
+          [this.db.outbox, this.db.sales, this.db.returns, this.db.receipts, this.db.inventoryMovements],
           async () => {
             await this.db.outbox.update(op.seq as number, { status: "SYNCED", syncedAt: nowIso, error: null });
             if (op.operation === "sale.complete") await this.db.sales.update(op.entityId, { syncStatus: "SYNCED" });
             if (op.operation === "return.create") await this.db.returns.update(op.entityId, { syncStatus: "SYNCED" });
+            if (op.operation === "receipt.issue") await this.db.receipts.update(op.entityId, { syncStatus: "SYNCED" });
             // Only the movements this operation carries are now in the server ledger (a sale and
             // its later void share the sale id as reference).
             const movementType = ACKED_MOVEMENT_TYPE[op.operation];
@@ -211,10 +212,11 @@ export class SyncEngine {
       case "CONFLICT": {
         result.failed += 1;
         const status = outcome.status === "REJECTED" ? "FAILED" : "CONFLICT";
-        await this.db.transaction("rw", this.db.outbox, this.db.sales, this.db.returns, async () => {
+        await this.db.transaction("rw", [this.db.outbox, this.db.sales, this.db.returns, this.db.receipts], async () => {
           await this.db.outbox.update(op.seq as number, { status, attemptCount: op.attemptCount + 1, error });
           if (op.operation === "sale.complete") await this.db.sales.update(op.entityId, { syncStatus: status });
           if (op.operation === "return.create") await this.db.returns.update(op.entityId, { syncStatus: status });
+          if (op.operation === "receipt.issue") await this.db.receipts.update(op.entityId, { syncStatus: status });
         });
         return false;
       }

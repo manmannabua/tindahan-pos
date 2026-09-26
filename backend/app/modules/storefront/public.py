@@ -284,6 +284,18 @@ async def _build(
     brands = await _names(db, Brand.id, Brand.name, {p.brand_id for p in products})
     categories = await _names(db, Category.id, Category.name, {p.category_id for p in products})
     units = await _names(db, Unit.id, Unit.name, {p.base_unit_id for p in products})
+    # Measured units (kg, l, …) are shown with their symbol: "2.5 kg left", "₱52.00 / kg".
+    symbols = {
+        unit_id: code.lower()
+        for unit_id, code in (
+            await db.execute(
+                select(Unit.id, Unit.code).where(
+                    Unit.id.in_({p.base_unit_id for p in products}),
+                    Unit.allows_decimal.is_(True),
+                )
+            )
+        ).all()
+    }
 
     show_stock = sf.stock_display != StockDisplay.HIDDEN
     show_qty = sf.stock_display == StockDisplay.QUANTITY
@@ -319,6 +331,7 @@ async def _build(
             category=categories.get(p.category_id) if p.category_id else None,
             image_url=p.image_url,
             unit=units.get(p.base_unit_id, ""),
+            unit_symbol=symbols.get(p.base_unit_id),
             price=min(variant_prices) if variant_prices else None,
             price_varies=len(variant_prices) > 1,
             availability=best if show_stock else None,

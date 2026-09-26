@@ -6,6 +6,7 @@ import {
   HistoryIcon,
   LockIcon,
   MonitorSmartphoneIcon,
+  ReceiptTextIcon,
   RefreshCwIcon,
   SettingsIcon,
   ShoppingCartIcon,
@@ -22,17 +23,19 @@ import { useServiceWorkerUpdate } from "../hooks/use-sw-update";
 import { ManagerAuthDialog } from "../manager-auth";
 import { CashView, OpenCashSession } from "./cash-session-views";
 import { PinLogin } from "./pin-login";
+import { ReceiptsJournal } from "./receipts-journal";
 import { SalesHistory } from "./sales-history";
 import { SellScreen } from "./sell-screen";
 import { SyncMonitor } from "./sync-monitor";
 import { TerminalSettingsView } from "./terminal-settings";
 
-type View = "sell" | "cash" | "sales" | "sync" | "settings";
+type View = "sell" | "cash" | "sales" | "receipts" | "sync" | "settings";
 
 const VIEWS: { id: View; label: string; icon: typeof ShoppingCartIcon }[] = [
   { id: "sell", label: "Sell", icon: ShoppingCartIcon },
   { id: "cash", label: "Cash", icon: BanknoteIcon },
   { id: "sales", label: "Sales", icon: HistoryIcon },
+  { id: "receipts", label: "Receipts", icon: ReceiptTextIcon },
   { id: "sync", label: "Sync", icon: RefreshCwIcon },
   { id: "settings", label: "Settings", icon: SettingsIcon },
 ];
@@ -79,6 +82,7 @@ export function PosApp() {
       {view === "sell" && (needsSession ? <OpenCashSession /> : <SellScreen />)}
       {view === "cash" && <CashView />}
       {view === "sales" && <SalesHistory />}
+      {view === "receipts" && <ReceiptsJournal />}
       {view === "sync" && <SyncMonitor />}
       {view === "settings" && <TerminalSettingsView />}
       <ManagerAuthDialog />

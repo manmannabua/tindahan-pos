@@ -1633,6 +1633,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/receipts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Receipts
+         * @description The receipt journal: every receipt issued by the terminals, printed or not.
+         */
+        get: operations["list_receipts_api_v1_receipts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/receipts/{receipt_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Receipt */
+        get: operations["get_receipt_api_v1_receipts__receipt_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/promotions": {
         parameters: {
             query?: never;
@@ -3507,6 +3544,17 @@ export interface components {
             /** Offset */
             offset: number;
         };
+        /** Page[SalesReceiptSummary] */
+        Page_SalesReceiptSummary_: {
+            /** Items */
+            items: components["schemas"]["SalesReceiptSummary"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
         /** Page[SupplierRead] */
         Page_SupplierRead_: {
             /** Items */
@@ -3749,6 +3797,11 @@ export interface components {
             /** Is Active */
             is_active: boolean;
         };
+        /**
+         * PrintMethod
+         * @enum {string}
+         */
+        PrintMethod: "ESCPOS" | "BROWSER";
         /** ProductCreate */
         ProductCreate: {
             /** Name */
@@ -3807,6 +3860,8 @@ export interface components {
              * @default false
              */
             include_inactive: boolean;
+            /** Online */
+            online?: boolean | null;
         };
         /** ProductRead */
         ProductRead: {
@@ -4149,6 +4204,11 @@ export interface components {
              */
             unit: string;
             /**
+             * Unit Symbol
+             * @description 'kg', 'g', 'l', … for measured (decimal) units; null for counted items
+             */
+            unit_symbol: string | null;
+            /**
              * Price
              * @description Lowest variant price; null when prices are hidden
              */
@@ -4185,6 +4245,11 @@ export interface components {
              * @description Base unit name, e.g. 'piece' or 'kilogram'
              */
             unit: string;
+            /**
+             * Unit Symbol
+             * @description 'kg', 'g', 'l', … for measured (decimal) units; null for counted items
+             */
+            unit_symbol: string | null;
             /**
              * Price
              * @description Lowest variant price; null when prices are hidden
@@ -4351,6 +4416,11 @@ export interface components {
             /** Lines */
             lines: components["schemas"]["ReceiptLineIn"][];
         };
+        /**
+         * ReceiptKind
+         * @enum {string}
+         */
+        ReceiptKind: "SALE" | "RETURN";
         /** ReceiptLineIn */
         ReceiptLineIn: {
             /** Purchase Order Line Id */
@@ -4969,6 +5039,129 @@ export interface components {
              * Format: date-time
              */
             received_at: string;
+        };
+        /** SalesReceiptPrintRead */
+        SalesReceiptPrintRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Printed At
+             * Format: date-time
+             */
+            printed_at: string;
+            method: components["schemas"]["PrintMethod"];
+            /** Is Reprint */
+            is_reprint: boolean;
+            /** Fallback Reason */
+            fallback_reason: string | null;
+            /** Terminal Code */
+            terminal_code: string;
+        };
+        /** SalesReceiptRead */
+        SalesReceiptRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            kind: components["schemas"]["ReceiptKind"];
+            /** Number */
+            number: string;
+            /** Sale Id */
+            sale_id: string | null;
+            /** Return Id */
+            return_id: string | null;
+            /**
+             * Branch Id
+             * Format: uuid
+             */
+            branch_id: string;
+            /**
+             * Device Id
+             * Format: uuid
+             */
+            device_id: string;
+            /** Terminal Code */
+            terminal_code: string;
+            /**
+             * Issued At
+             * Format: date-time
+             */
+            issued_at: string;
+            /** Total */
+            total: string;
+            /** Cashier Name */
+            cashier_name: string;
+            /** Reconstructed */
+            reconstructed: boolean;
+            /**
+             * Print Count
+             * @description 0 = never printed (virtual only)
+             */
+            print_count: number;
+            /** Last Printed At */
+            last_printed_at: string | null;
+            last_print_method: components["schemas"]["PrintMethod"] | null;
+            /** Width */
+            width: number;
+            /**
+             * Lines
+             * @description ReceiptLine[] exactly as issued
+             */
+            lines: {
+                [key: string]: unknown;
+            }[];
+            /** Prints */
+            prints: components["schemas"]["SalesReceiptPrintRead"][];
+        };
+        /** SalesReceiptSummary */
+        SalesReceiptSummary: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            kind: components["schemas"]["ReceiptKind"];
+            /** Number */
+            number: string;
+            /** Sale Id */
+            sale_id: string | null;
+            /** Return Id */
+            return_id: string | null;
+            /**
+             * Branch Id
+             * Format: uuid
+             */
+            branch_id: string;
+            /**
+             * Device Id
+             * Format: uuid
+             */
+            device_id: string;
+            /** Terminal Code */
+            terminal_code: string;
+            /**
+             * Issued At
+             * Format: date-time
+             */
+            issued_at: string;
+            /** Total */
+            total: string;
+            /** Cashier Name */
+            cashier_name: string;
+            /** Reconstructed */
+            reconstructed: boolean;
+            /**
+             * Print Count
+             * @description 0 = never printed (virtual only)
+             */
+            print_count: number;
+            /** Last Printed At */
+            last_printed_at: string | null;
+            last_print_method: components["schemas"]["PrintMethod"] | null;
         };
         /** SetOwnPinRequest */
         SetOwnPinRequest: {
@@ -9471,6 +9664,79 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReturnRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_receipts_api_v1_receipts_get: {
+        parameters: {
+            query?: {
+                /** @description Receipt/return number */
+                q?: string | null;
+                kind?: components["schemas"]["ReceiptKind"] | null;
+                /** @description false = never printed */
+                printed?: boolean | null;
+                branch_id?: string | null;
+                device_id?: string | null;
+                sale_id?: string | null;
+                issued_from?: string | null;
+                issued_to?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_SalesReceiptSummary_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_receipt_api_v1_receipts__receipt_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                receipt_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SalesReceiptRead"];
                 };
             };
             /** @description Validation Error */

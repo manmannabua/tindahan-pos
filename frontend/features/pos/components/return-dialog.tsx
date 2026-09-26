@@ -24,7 +24,7 @@ import { triggerSync } from "@/lib/sync/service";
 import { usePosSession } from "@/stores/pos-session-store";
 
 import { requestAuthorization } from "../manager-auth";
-import { printWithFeedback } from "../print";
+import { printJournalReceipt } from "../print";
 import { DecimalInput } from "./money-input";
 
 /** A sale to return: one stored on this terminal, or one found online on another terminal. */
@@ -101,21 +101,22 @@ function ReturnForm({ sale, onDone }: { sale: ReturnTarget; onDone: () => void }
         cashSessionId: cashSession?.id ?? null,
         deviceId: context.device.deviceId,
         receiptPrefix: context.device.receiptPrefix,
+        buildReceipt: (ret, items, refunds) =>
+          buildReturnReceipt({
+            ret,
+            items,
+            refunds,
+            originalReceipt: sale.receiptNumber,
+            company: context.company,
+            branch: context.branch,
+            terminalCode: context.device.terminalCode,
+            width: context.settings.receiptWidth,
+            deviceBir: context.deviceBir,
+          }),
       });
       triggerSync();
       toast.success(`Return ${created.ret.returnNumber}: refund ${formatMoney(created.ret.refundTotal, currency)}`);
-      void printWithFeedback(
-        buildReturnReceipt({
-          ...created,
-          originalReceipt: sale.receiptNumber,
-          company: context.company,
-          branch: context.branch,
-          terminalCode: context.device.terminalCode,
-          width: context.settings.receiptWidth,
-          deviceBir: context.deviceBir,
-        }),
-        context,
-      );
+      if (created.receiptId) void printJournalReceipt(created.receiptId, context);
       onDone();
     } catch (error) {
       toast.error(error instanceof ReturnVoidError ? error.message : `Could not process the return: ${String(error)}`);

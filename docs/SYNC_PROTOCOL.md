@@ -71,6 +71,8 @@ records themselves (`sales`, …) are kept locally for receipt reprinting per a 
 | 30 | `inventory.*` (adjustments, counts done offline) | |
 | 40 | `cash_movement.record`, `cash_session.close` | |
 | 50 | `return.create` | |
+| 55 | `receipt.issue` | the receipt journal entry references its sale / return |
+| 58 | `receipt.print` | each print references its journal entry (entity = the print event, so reprints never collide) |
 | 60 | everything else | |
 
 Priorities only optimize the common case. Correctness never depends on arrival order: a
