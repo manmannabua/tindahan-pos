@@ -344,3 +344,7 @@ Demo logins (random passwords) in `/root/tindahan-demo.txt` on the VM. Upgrade:
 `python -m app.cli seed-dev` → company `DEMO`, admin `owner@demo.example.com` /
 `demo-password-123`; staff `manager` (PIN 246810), `cashier1` (135790), `cashier2` (975310),
 `stock` (864209), all with password `demo-password-123`.
+
+## Demo product images (2026-09-26)
+Generated eight illustrative catalog photos with built-in image_gen; optimized 800x800 JPEGs and exact prompts are in assets/demo-products/. Applied to the local and live DEMO company via scripts/apply_demo_images.py and the existing audited image service, preserving existing photos. Verified all eight live image URLs return HTTP 200 image/jpeg. The repeatable script only fills missing images and is scoped to company DEMO. Ruff passes for the script.
+

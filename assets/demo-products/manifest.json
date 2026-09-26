@@ -1,0 +1,62 @@
+{
+  "generator": "built-in image_gen",
+  "purpose": "Illustrative demo product images",
+  "items": [
+    {
+      "slug": "biogesic-paracetamol-500mg",
+      "name": "Biogesic Paracetamol 500mg",
+      "prompt": "Use case: product-mockup. Asset type: demo store square product catalog photograph. Subject: a Biogesic paracetamol 500mg orange and white retail blister strip with visible tablets; readable brand Biogesic and strength 500mg, no dosage instructions. Style: photorealistic studio product photography. Single product centered and fully visible with generous margins, subtle three-quarter view, seamless warm white background, soft diffused lighting and a gentle contact shadow. Clean consistent ecommerce composition, sharp product detail. No hands, extra props, price badges, watermark or background text. Image is illustrative demo product imagery.",
+      "source": "C:/Users/Norman/.codex/generated_images/01a0de49-ddd4-7c11-b55a-dac90aab2ccd/exec-1917a2b5-b78e-43d0-9ffa-53525ef1cd79.png",
+      "file": "biogesic-paracetamol-500mg.jpg"
+    },
+    {
+      "slug": "century-tuna-155g",
+      "name": "Century Tuna Flakes in Oil 155g",
+      "prompt": "Use case: product-mockup. Asset type: demo store square product catalog photograph. Subject: one unopened Century Tuna Flakes in Oil 155g can with its red label, silver metal lid, readable Century Tuna and Flakes in Oil. Style: photorealistic studio product photography. Single product centered and fully visible with generous margins, subtle three-quarter view, seamless warm white background, soft diffused lighting and a gentle contact shadow. Clean consistent ecommerce composition, sharp product detail. No hands, extra props, price badges, watermark or background text. Image is illustrative demo product imagery.",
+      "source": "C:/Users/Norman/.codex/generated_images/01a0de49-ddd4-7c11-b55a-dac90aab2ccd/exec-2d0b6b8d-7f1b-4554-afcb-289ecda51eb1.png",
+      "file": "century-tuna-155g.jpg"
+    },
+    {
+      "slug": "coke-regular-1-5l",
+      "name": "Coke Regular 1.5L",
+      "prompt": "Use case: product-mockup. Asset type: demo store square product catalog photograph. Subject: one Coca-Cola regular 1.5 litre PET bottle filled with dark cola, red cap and classic red Coca-Cola label. Style: photorealistic studio product photography. Single product centered and fully visible with generous margins, subtle three-quarter view, seamless warm white background, soft diffused lighting and a gentle contact shadow. Clean consistent ecommerce composition, sharp product detail. No hands, extra props, price badges, watermark or background text. Image is illustrative demo product imagery.",
+      "source": "C:/Users/Norman/.codex/generated_images/01a0de49-ddd4-7c11-b55a-dac90aab2ccd/exec-f3476b27-052c-4628-ab73-05514e933b9d.png",
+      "file": "coke-regular-1-5l.jpg"
+    },
+    {
+      "slug": "lucky-me-pancit-canton-original",
+      "name": "Lucky Me Pancit Canton Original",
+      "prompt": "Use case: product-mockup. Asset type: demo store square product catalog photograph. Subject: one sealed Lucky Me! Pancit Canton Original instant noodle packet, yellow packaging with noodle serving illustration, readable Lucky Me! and Pancit Canton Original. Style: photorealistic studio product photography. Single product centered and fully visible with generous margins, subtle three-quarter view, seamless warm white background, soft diffused lighting and a gentle contact shadow. Clean consistent ecommerce composition, sharp product detail. No hands, extra props, price badges, watermark or background text. Image is illustrative demo product imagery.",
+      "source": "C:/Users/Norman/.codex/generated_images/01a0de49-ddd4-7c11-b55a-dac90aab2ccd/exec-17ee3431-3539-4547-ab28-07bd0c324f0a.png",
+      "file": "lucky-me-pancit-canton-original.jpg"
+    },
+    {
+      "slug": "nescafe-classic-25g",
+      "name": "Nescafe Classic 25g",
+      "prompt": "Use case: product-mockup. Asset type: demo store square product catalog photograph. Subject: one sealed Nescafe Classic 25g instant coffee refill pouch, dark brown and red packaging, readable NESCAFÉ CLASSIC and 25g. Style: photorealistic studio product photography. Single product centered and fully visible with generous margins, subtle three-quarter view, seamless warm white background, soft diffused lighting and a gentle contact shadow. Clean consistent ecommerce composition, sharp product detail. No hands, extra props, price badges, watermark or background text. Image is illustrative demo product imagery.",
+      "source": "C:/Users/Norman/.codex/generated_images/01a0de49-ddd4-7c11-b55a-dac90aab2ccd/exec-c5e1d48f-7c90-453d-beae-1c259f3e6301.png",
+      "file": "nescafe-classic-25g.jpg"
+    },
+    {
+      "slug": "rice-per-kg",
+      "name": "Rice (per kg)",
+      "prompt": "Use case: product-mockup. Asset type: demo store square product catalog photograph. Subject: a simple open small burlap sack filled with uncooked white rice grains, a small natural mound of rice visible on top, no labels or text. Style: photorealistic studio product photography. Single product centered and fully visible with generous margins, subtle three-quarter view, seamless warm white background, soft diffused lighting and a gentle contact shadow. Clean consistent ecommerce composition, sharp product detail. No hands, extra props, price badges, watermark or background text. Image is illustrative demo product imagery.",
+      "source": "C:/Users/Norman/.codex/generated_images/01a0de49-ddd4-7c11-b55a-dac90aab2ccd/exec-071859bf-8144-4378-bf29-b286bfc53c5a.png",
+      "file": "rice-per-kg.jpg"
+    },
+    {
+      "slug": "royal-tru-orange-1-5l",
+      "name": "Royal Tru-Orange 1.5L",
+      "prompt": "Use case: product-mockup. Asset type: demo store square product catalog photograph. Subject: one Royal Tru-Orange 1.5 litre PET bottle filled with bright orange soda, orange cap and colorful Royal Tru-Orange label. Style: photorealistic studio product photography. Single product centered and fully visible with generous margins, subtle three-quarter view, seamless warm white background, soft diffused lighting and a gentle contact shadow. Clean consistent ecommerce composition, sharp product detail. No hands, extra props, price badges, watermark or background text. Image is illustrative demo product imagery.",
+      "source": "C:/Users/Norman/.codex/generated_images/01a0de49-ddd4-7c11-b55a-dac90aab2ccd/exec-f279d9d4-d74a-4688-a500-2b819614a439.png",
+      "file": "royal-tru-orange-1-5l.jpg"
+    },
+    {
+      "slug": "safeguard-soap-135g",
+      "name": "Safeguard Soap 135g",
+      "prompt": "Use case: product-mockup. Asset type: demo store square product catalog photograph. Subject: one unopened Safeguard Pure White soap 135g retail carton with white and blue packaging, readable Safeguard and 135g. Style: photorealistic studio product photography. Single product centered and fully visible with generous margins, subtle three-quarter view, seamless warm white background, soft diffused lighting and a gentle contact shadow. Clean consistent ecommerce composition, sharp product detail. No hands, extra props, price badges, watermark or background text. Image is illustrative demo product imagery.",
+      "source": "C:/Users/Norman/.codex/generated_images/01a0de49-ddd4-7c11-b55a-dac90aab2ccd/exec-cef269e1-b26d-4447-9160-18073e23bd62.png",
+      "file": "safeguard-soap-135g.jpg"
+    }
+  ]
+}
