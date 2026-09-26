@@ -16,6 +16,7 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.modules.companies.features import Feature
 from app.modules.reporting import service as rs
 from app.modules.reporting.service import Scope
 
@@ -38,6 +39,8 @@ class ReportDef:
     title: str
     run: Runner
     financial: frozenset[str] = field(default_factory=frozenset)
+    # Only available while this optional feature is on (companies/features.py).
+    feature: Feature | None = None
 
 
 def _simple(fn: Callable[[AsyncSession, Scope], Awaitable[Any]]) -> Runner:
@@ -74,32 +77,58 @@ REPORTS: dict[str, ReportDef] = {
     ),
     "no-sales": ReportDef("Products with no sales", _simple(rs.products_without_sales)),
     "inventory-valuation": ReportDef(
-        "Inventory valuation", _simple(rs.inventory_valuation), frozenset({"value"})
+        "Inventory valuation",
+        _simple(rs.inventory_valuation),
+        frozenset({"value"}),
+        Feature.INVENTORY,
     ),
-    "low-stock": ReportDef("Low stock", lambda db, s, _o: rs.stock_levels(db, s, condition="low")),
+    "low-stock": ReportDef(
+        "Low stock",
+        lambda db, s, _o: rs.stock_levels(db, s, condition="low"),
+        feature=Feature.INVENTORY,
+    ),
     "out-of-stock": ReportDef(
-        "Out of stock", lambda db, s, _o: rs.stock_levels(db, s, condition="out")
+        "Out of stock",
+        lambda db, s, _o: rs.stock_levels(db, s, condition="out"),
+        feature=Feature.INVENTORY,
     ),
     "negative-inventory": ReportDef(
-        "Negative inventory", lambda db, s, _o: rs.stock_levels(db, s, condition="negative")
+        "Negative inventory",
+        lambda db, s, _o: rs.stock_levels(db, s, condition="negative"),
+        feature=Feature.INVENTORY,
     ),
     "inventory-movements": ReportDef(
-        "Inventory movements", _simple(rs.inventory_movement_summary), frozenset({"value"})
+        "Inventory movements",
+        _simple(rs.inventory_movement_summary),
+        frozenset({"value"}),
+        Feature.INVENTORY,
     ),
     "stock-count-variance": ReportDef(
-        "Stock count variance", _simple(rs.stock_count_variance), frozenset({"variance_value"})
+        "Stock count variance",
+        _simple(rs.stock_count_variance),
+        frozenset({"variance_value"}),
+        Feature.INVENTORY,
     ),
-    "purchases-by-supplier": ReportDef("Purchases by supplier", _simple(rs.purchases_by_supplier)),
-    "cash-drawer": ReportDef("Cash drawer / over-short", _simple(rs.cash_drawer)),
-    "expenses": ReportDef("Expenses by category", _simple(rs.expenses_by_category)),
-    "returns": ReportDef("Returns", _simple(rs.returns_report)),
+    "purchases-by-supplier": ReportDef(
+        "Purchases by supplier", _simple(rs.purchases_by_supplier), feature=Feature.PURCHASING
+    ),
+    "cash-drawer": ReportDef(
+        "Cash drawer / over-short", _simple(rs.cash_drawer), feature=Feature.CASH_MANAGEMENT
+    ),
+    "expenses": ReportDef(
+        "Expenses by category", _simple(rs.expenses_by_category), feature=Feature.EXPENSES
+    ),
+    "returns": ReportDef("Returns", _simple(rs.returns_report), feature=Feature.RETURNS),
     "voids": ReportDef("Voids", _simple(rs.voids_report)),
-    "sc-pwd-book": ReportDef("Senior citizen / PWD sales book", _simple(rs.sc_pwd_book)),
+    "sc-pwd-book": ReportDef(
+        "Senior citizen / PWD sales book", _simple(rs.sc_pwd_book), feature=Feature.SC_PWD
+    ),
     "terminal-reading": ReportDef(
         "Terminal X/Z reading",
         lambda db, s, o: rs.terminal_reading(
             db, s, uuid.UUID(o["device_id"]) if o.get("device_id") else None
         ),
+        feature=Feature.BIR,
     ),
 }
 

@@ -7,8 +7,10 @@ from app.modules.auth.dependencies import (
     CurrentPrincipal,
     DbSession,
     audit_actor,
+    require_feature,
     require_permission,
 )
+from app.modules.companies.features import Feature
 from app.modules.promotions import service
 from app.modules.promotions.models import Promotion
 from app.modules.promotions.schemas import PromotionCreate, PromotionRead, PromotionUpdate
@@ -16,7 +18,11 @@ from app.modules.users.permissions import P
 from app.shared import crud
 from app.shared.schemas import Page
 
-router = APIRouter(prefix="/promotions", tags=["promotions"])
+router = APIRouter(
+    prefix="/promotions",
+    tags=["promotions"],
+    dependencies=[Depends(require_feature(Feature.PROMOTIONS))],
+)
 _read = [Depends(require_permission(P.PRODUCTS_READ))]
 
 

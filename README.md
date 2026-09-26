@@ -55,6 +55,7 @@ shared/      cross-language test vectors (money/tax math used by pytest and Vite
 | [BARCODE_SCANNER](docs/BARCODE_SCANNER.md) | HID scanner detection, normalization, camera |
 | [RECEIPT_PRINTING](docs/RECEIPT_PRINTING.md) | 58/80 mm, browser print, ESC/POS |
 | [DEVICE_MANAGEMENT](docs/DEVICE_MANAGEMENT.md) | terminal registration, device keys, initialization |
+| [FEATURES_AND_ONBOARDING](docs/FEATURES_AND_ONBOARDING.md) | optional features (switches), gating, onboarding wizard |
 | [ONLINE_CATALOG](docs/ONLINE_CATALOG.md) | public browse-only store page: visibility, caching, abuse protection |
 | [SECURITY](docs/SECURITY.md) | tokens, offline auth, RBAC, hardening |
 | [DEPLOYMENT](docs/DEPLOYMENT.md) | production topology, backups, monitoring |

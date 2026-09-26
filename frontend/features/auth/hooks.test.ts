@@ -12,7 +12,7 @@ const me: Me = {
   username: "m",
   full_name: "Manager",
   has_pin: true,
-  company: { id: "c", code: "ACME", name: "Acme", currency: "PHP", timezone: "Asia/Manila", prices_include_tax: true },
+  company: { id: "c", code: "ACME", name: "Acme", currency: "PHP", timezone: "Asia/Manila", prices_include_tax: true, features: {}, onboarding_completed: true },
   device_id: null,
   permissions: ["products.read"],
   branch_permissions: { "branch-a": ["branches.manage"] },

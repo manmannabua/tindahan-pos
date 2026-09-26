@@ -10,6 +10,7 @@ import { QueryError, TableSkeleton } from "@/components/shared/query-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useFeature } from "@/features/auth/hooks";
 import { useBranches, useBranchLabels } from "@/features/branches/api";
 import { useDevices } from "@/features/devices/api";
 import { DeviceEditDialog } from "@/features/devices/components/device-edit-dialog";
@@ -21,6 +22,7 @@ const ALL = "__all__";
 
 export default function DevicesPage() {
   const [branchFilter, setBranchFilter] = useState(ALL);
+  const birOn = useFeature("bir");
   const { data: branches = [] } = useBranches();
   const branchLabels = useBranchLabels();
   const { data: devices, isPending, error, refetch } = useDevices(branchFilter === ALL ? null : branchFilter);
@@ -74,7 +76,7 @@ export default function DevicesPage() {
                       <span className="font-mono">{device.terminal_code}</span> · {device.name}
                     </div>
                     <div className="max-w-64 truncate text-xs text-muted-foreground">
-                      {device.bir_min ? `MIN ${device.bir_min} · ` : "No BIR MIN · "}
+                      {birOn && (device.bir_min ? `MIN ${device.bir_min} · ` : "No BIR MIN · ")}
                       {device.platform ?? "Unknown platform"}
                       {device.app_version && ` · v${device.app_version}`}
                     </div>

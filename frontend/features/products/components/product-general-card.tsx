@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useFeature } from "@/features/auth/hooks";
 import { useUpdateProduct } from "@/features/catalog/api";
 import { errorMessage } from "@/lib/api/errors";
 import type { Product } from "@/types/api-admin";
@@ -30,6 +31,8 @@ function toValues(p: Product): GeneralValues {
 
 export function ProductGeneralCard({ product, canEdit }: { product: Product; canEdit: boolean }) {
   const update = useUpdateProduct(product.id);
+  const scPwd = useFeature("sc_pwd");
+  const onlineCatalog = useFeature("online_catalog");
   const [values, setValues] = useState(() => toValues(product));
   // Reset the form when a new version of the product is loaded (e.g. after saving).
   const [syncedFrom, setSyncedFrom] = useState(product);
@@ -62,8 +65,8 @@ export function ProductGeneralCard({ product, canEdit }: { product: Product; can
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           General
-          {product.sc_pwd_eligible && <Badge variant="secondary">SC/PWD eligible</Badge>}
-          {product.show_online && <Badge variant="outline">Online</Badge>}
+          {scPwd && product.sc_pwd_eligible && <Badge variant="secondary">SC/PWD eligible</Badge>}
+          {onlineCatalog && product.show_online && <Badge variant="outline">Online</Badge>}
         </CardTitle>
       </CardHeader>
       <CardContent className="grid gap-4">

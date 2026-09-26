@@ -3,6 +3,7 @@
 import { SelectField, TextAreaField, TextField } from "@/components/shared/form-fields";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { useFeature } from "@/features/auth/hooks";
 import { useCategories, useReference } from "@/features/catalog/api";
 import { flattenCategories } from "@/features/catalog/category-tree";
 
@@ -49,6 +50,9 @@ export function ProductGeneralFields({ value, onChange, mode, nameError }: Props
   const { data: brands } = useReference("brands");
   const { data: units } = useReference("units");
   const { data: taxes } = useReference("tax-rates");
+  const inventory = useFeature("inventory");
+  const scPwd = useFeature("sc_pwd");
+  const onlineCatalog = useFeature("online_catalog");
   const set = <K extends keyof GeneralValues>(key: K, v: GeneralValues[K]) => onChange({ ...value, [key]: v });
 
   return (
@@ -91,18 +95,24 @@ export function ProductGeneralFields({ value, onChange, mode, nameError }: Props
         />
       </div>
       <div className="flex flex-wrap gap-6">
-        <div className="flex items-center gap-2">
-          <Switch id="track-inventory" checked={value.trackInventory} onCheckedChange={(v) => set("trackInventory", v)} />
-          <Label htmlFor="track-inventory">Track inventory</Label>
-        </div>
-        <div className="flex items-center gap-2">
-          <Switch id="sc-pwd-eligible" checked={value.scPwdEligible} onCheckedChange={(v) => set("scPwdEligible", v)} />
-          <Label htmlFor="sc-pwd-eligible">Senior citizen / PWD discount applies</Label>
-        </div>
-        <div className="flex items-center gap-2">
-          <Switch id="show-online" checked={value.showOnline} onCheckedChange={(v) => set("showOnline", v)} />
-          <Label htmlFor="show-online">Show in online catalog</Label>
-        </div>
+        {inventory && (
+          <div className="flex items-center gap-2">
+            <Switch id="track-inventory" checked={value.trackInventory} onCheckedChange={(v) => set("trackInventory", v)} />
+            <Label htmlFor="track-inventory">Track inventory</Label>
+          </div>
+        )}
+        {scPwd && (
+          <div className="flex items-center gap-2">
+            <Switch id="sc-pwd-eligible" checked={value.scPwdEligible} onCheckedChange={(v) => set("scPwdEligible", v)} />
+            <Label htmlFor="sc-pwd-eligible">Senior citizen / PWD discount applies</Label>
+          </div>
+        )}
+        {onlineCatalog && (
+          <div className="flex items-center gap-2">
+            <Switch id="show-online" checked={value.showOnline} onCheckedChange={(v) => set("showOnline", v)} />
+            <Label htmlFor="show-online">Show in online catalog</Label>
+          </div>
+        )}
         {mode === "edit" && (
           <div className="flex items-center gap-2">
             <Switch id="product-active" checked={value.isActive} onCheckedChange={(v) => set("isActive", v)} />

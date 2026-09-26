@@ -7,8 +7,10 @@ from app.modules.auth.dependencies import (
     CurrentPrincipal,
     DbSession,
     audit_actor,
+    require_feature,
     require_permission,
 )
+from app.modules.companies.features import Feature
 from app.modules.customers import service
 from app.modules.customers.models import Customer
 from app.modules.customers.schemas import CustomerCreate, CustomerRead, CustomerUpdate
@@ -16,7 +18,11 @@ from app.modules.users.permissions import P
 from app.shared import crud
 from app.shared.schemas import Page
 
-router = APIRouter(prefix="/customers", tags=["customers"])
+router = APIRouter(
+    prefix="/customers",
+    tags=["customers"],
+    dependencies=[Depends(require_feature(Feature.CUSTOMERS))],
+)
 _read = [Depends(require_permission(P.CUSTOMERS_READ))]
 
 

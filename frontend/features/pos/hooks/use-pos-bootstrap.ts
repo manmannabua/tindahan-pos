@@ -12,6 +12,7 @@ import { useCartStore } from "@/stores/cart-store";
 import { usePosSession } from "@/stores/pos-session-store";
 import { useTerminalStore } from "@/stores/terminal-store";
 import type { PromotionSync } from "@/types/sync";
+import { usePosFeature } from "./use-pos-feature";
 
 export type BootState = "loading" | "not_ready" | "ready" | "error";
 
@@ -64,18 +65,19 @@ export function usePosBootstrap(): { state: BootState; error: string | null } {
   // (happy hour, a promotion ending at midnight) take effect in an open cart.
   const promotions = useLiveQuery(() => getDb().promotions.toArray(), [], []);
   const context = usePosSession((s) => s.context);
+  const promotionsOn = usePosFeature("promotions");
   useEffect(() => {
     if (!context) return;
     const apply = () =>
       useCartStore.getState().setPromoContext({
-        promotions: promotions.filter((p) => p.isActive).map((p) => p.data as PromotionSync),
+        promotions: promotionsOn ? promotions.filter((p) => p.isActive).map((p) => p.data as PromotionSync) : [],
         timeZone: context.company.timezone,
         branchId: context.branch.id,
       });
     apply();
     const timer = window.setInterval(apply, 60_000);
     return () => window.clearInterval(timer);
-  }, [promotions, context]);
+  }, [promotions, context, promotionsOn]);
 
   return { state, error };
 }

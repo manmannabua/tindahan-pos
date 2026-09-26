@@ -8,8 +8,10 @@ from app.modules.auth.dependencies import (
     CurrentPrincipal,
     DbSession,
     audit_actor,
+    require_feature,
     require_permission,
 )
+from app.modules.companies.features import Feature
 from app.modules.inventory import operations as ops
 from app.modules.inventory.models import StockCount, StockTransfer
 from app.modules.inventory.operations_schemas import (
@@ -27,7 +29,11 @@ from app.modules.inventory.operations_schemas import (
 from app.modules.users.permissions import P
 from app.shared.schemas import Page
 
-router = APIRouter(prefix="/inventory", tags=["inventory operations"])
+router = APIRouter(
+    prefix="/inventory",
+    tags=["inventory operations"],
+    dependencies=[Depends(require_feature(Feature.INVENTORY))],
+)
 _read = [Depends(require_permission(P.INVENTORY_READ))]
 
 

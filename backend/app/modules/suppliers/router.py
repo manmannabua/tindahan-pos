@@ -8,7 +8,9 @@ from app.modules.auth.dependencies import (
     DbSession,
     audit_actor,
     require_any_permission,
+    require_feature,
 )
+from app.modules.companies.features import Feature
 from app.modules.suppliers import service
 from app.modules.suppliers.models import Supplier
 from app.modules.suppliers.schemas import SupplierCreate, SupplierRead, SupplierUpdate
@@ -16,7 +18,11 @@ from app.modules.users.permissions import P
 from app.shared import crud
 from app.shared.schemas import Page
 
-router = APIRouter(prefix="/suppliers", tags=["purchasing"])
+router = APIRouter(
+    prefix="/suppliers",
+    tags=["purchasing"],
+    dependencies=[Depends(require_feature(Feature.PURCHASING))],
+)
 # Anyone who manages suppliers, buys or receives stock needs to see suppliers.
 _view = [
     Depends(require_any_permission(P.SUPPLIERS_MANAGE, P.PURCHASING_MANAGE, P.PURCHASING_RECEIVE))

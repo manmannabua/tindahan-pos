@@ -3,6 +3,7 @@
 import {
   BanknoteIcon,
   DownloadIcon,
+  FileTextIcon,
   HistoryIcon,
   LockIcon,
   MonitorSmartphoneIcon,
@@ -23,17 +24,20 @@ import { useServiceWorkerUpdate } from "../hooks/use-sw-update";
 import { ManagerAuthDialog } from "../manager-auth";
 import { CashView, OpenCashSession } from "./cash-session-views";
 import { PinLogin } from "./pin-login";
+import { ReadingsCard } from "./readings-card";
 import { ReceiptsJournal } from "./receipts-journal";
 import { SalesHistory } from "./sales-history";
 import { SellScreen } from "./sell-screen";
 import { SyncMonitor } from "./sync-monitor";
 import { TerminalSettingsView } from "./terminal-settings";
+import { usePosFeature } from "../hooks/use-pos-feature";
 
-type View = "sell" | "cash" | "sales" | "receipts" | "sync" | "settings";
+type View = "sell" | "cash" | "readings" | "sales" | "receipts" | "sync" | "settings";
 
 const VIEWS: { id: View; label: string; icon: typeof ShoppingCartIcon }[] = [
   { id: "sell", label: "Sell", icon: ShoppingCartIcon },
   { id: "cash", label: "Cash", icon: BanknoteIcon },
+  { id: "readings", label: "Readings", icon: FileTextIcon },
   { id: "sales", label: "Sales", icon: HistoryIcon },
   { id: "receipts", label: "Receipts", icon: ReceiptTextIcon },
   { id: "sync", label: "Sync", icon: RefreshCwIcon },
@@ -49,6 +53,9 @@ export function PosApp() {
   const { state, error } = usePosBootstrap();
   const { context, cashier, cashSession } = usePosSession();
   const [view, setView] = useState<View>("sell");
+  const cashOn = usePosFeature("cash_management");
+  const birOn = usePosFeature("bir");
+  const journalOn = usePosFeature("receipt_journal");
 
   if (state === "loading") return <p className="p-8 text-center text-muted-foreground">Opening terminal…</p>;
   if (state === "error") return <p className="p-8 text-center text-destructive">Could not open the local database: {error}</p>;
@@ -56,7 +63,12 @@ export function PosApp() {
   if (!context) return null;
   if (!cashier) return <PinLogin />;
 
-  const needsSession = context.settings.requireCashSession && !cashSession;
+  // Cash sessions are part of the optional cash-drawer feature. Without it, X/Z readings (BIR)
+  // get their own tab.
+  const needsSession = cashOn && context.settings.requireCashSession && !cashSession;
+  const views = VIEWS.filter(
+    (v) => (v.id !== "cash" || cashOn) && (v.id !== "readings" || (birOn && !cashOn)) && (v.id !== "receipts" || journalOn),
+  );
   const lock = () => {
     usePosSession.getState().logout();
     setView("sell");
@@ -65,7 +77,7 @@ export function PosApp() {
   return (
     <div className="flex flex-1 flex-col">
       <nav className="flex items-center gap-1 border-b bg-background px-3 py-1.5" aria-label="Terminal">
-        {VIEWS.map(({ id, label, icon: Icon }) => (
+        {views.map(({ id, label, icon: Icon }) => (
           <Button key={id} variant={view === id ? "secondary" : "ghost"} className="h-10" onClick={() => setView(id)}>
             <Icon /> {label}
           </Button>
@@ -80,9 +92,14 @@ export function PosApp() {
         </Button>
       </nav>
       {view === "sell" && (needsSession ? <OpenCashSession /> : <SellScreen />)}
-      {view === "cash" && <CashView />}
+      {view === "cash" && cashOn && <CashView />}
+      {view === "readings" && (
+        <div className="mx-auto w-full max-w-3xl p-4">
+          <ReadingsCard shiftStart={null} />
+        </div>
+      )}
       {view === "sales" && <SalesHistory />}
-      {view === "receipts" && <ReceiptsJournal />}
+      {view === "receipts" && journalOn && <ReceiptsJournal />}
       {view === "sync" && <SyncMonitor />}
       {view === "settings" && <TerminalSettingsView />}
       <ManagerAuthDialog />

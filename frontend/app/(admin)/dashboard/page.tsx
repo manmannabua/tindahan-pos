@@ -20,7 +20,7 @@ import { StatCard } from "@/components/shared/stat-card";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { usePermissionInAnyScope, useSession } from "@/features/auth/hooks";
+import { useFeature, usePermissionInAnyScope, useSession } from "@/features/auth/hooks";
 import { type RealtimeMessage, useRealtime } from "@/features/dashboard/realtime";
 import { useDashboard } from "@/features/reports/api";
 import { SeriesChart } from "@/features/reports/components/series-chart";
@@ -43,6 +43,7 @@ function delta(today: Summary, yesterday: Summary, key: string): string | null {
 export default function DashboardPage() {
   const { user } = useSession();
   const canReports = usePermissionInAnyScope(ADMIN_PERM.REPORTS_VIEW);
+  const inventoryOn = useFeature("inventory");
   const queryClient = useQueryClient();
   const onEvent = useCallback(
     (m: RealtimeMessage) => {
@@ -116,15 +117,17 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
         <div className="grid content-start gap-3">
-          <Link href="/reports/low-stock">
-            <StatCard
-              label="Stock alerts"
-              icon={BoxesIcon}
-              value={`${data.stock.low ?? 0} low · ${data.stock.out ?? 0} out`}
-              hint={data.stock.negative ? `${data.stock.negative} negative` : "No negative stock"}
-              tone={data.stock.negative ? "danger" : data.stock.low ? "warning" : "default"}
-            />
-          </Link>
+          {inventoryOn && (
+            <Link href="/reports/low-stock">
+              <StatCard
+                label="Stock alerts"
+                icon={BoxesIcon}
+                value={`${data.stock.low ?? 0} low · ${data.stock.out ?? 0} out`}
+                hint={data.stock.negative ? `${data.stock.negative} negative` : "No negative stock"}
+                tone={data.stock.negative ? "danger" : data.stock.low ? "warning" : "default"}
+              />
+            </Link>
+          )}
           <Link href="/review-flags">
             <StatCard
               label="Open review flags"

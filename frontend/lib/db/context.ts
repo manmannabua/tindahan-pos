@@ -14,6 +14,8 @@ export interface PosContext {
   settings: TerminalSettings;
   /** BIR registration of this terminal (null until the server provides it). */
   deviceBir: DeviceBir | null;
+  /** Optional features (missing = on). Read live with `usePosFeature`. */
+  features: Record<string, boolean>;
 }
 
 export class TerminalNotReadyError extends Error {
@@ -24,7 +26,7 @@ export class TerminalNotReadyError extends Error {
 }
 
 export async function loadPosContext(db: PosDatabase): Promise<PosContext> {
-  const [initStatus, device, companyRow, branchRow, levels, methods, settings, deviceBir] = await Promise.all([
+  const [initStatus, device, companyRow, branchRow, levels, methods, settings, deviceBir, features] = await Promise.all([
     getMeta(db, "initStatus"),
     getMeta(db, "device"),
     db.settings.get("company"),
@@ -33,6 +35,7 @@ export async function loadPosContext(db: PosDatabase): Promise<PosContext> {
     db.paymentMethods.toArray(),
     getTerminalSettings(db),
     getMeta(db, "deviceBir"),
+    getMeta(db, "features"),
   ]);
   const defaultPriceLevel = levels.find((l) => l.isDefault && l.isActive);
   if (initStatus !== "READY" || !device || !companyRow || !branchRow || !defaultPriceLevel) {
@@ -46,5 +49,6 @@ export async function loadPosContext(db: PosDatabase): Promise<PosContext> {
     paymentMethods: methods.filter((m) => m.isActive).sort((a, b) => a.sortOrder - b.sortOrder),
     settings,
     deviceBir: deviceBir ?? null,
+    features: features ?? {},
   };
 }

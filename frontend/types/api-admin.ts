@@ -92,3 +92,8 @@ export type ProductsOnlineUpdate = S["ProductsOnlineUpdate"];
 // Receipt journal (virtual receipts)
 export type SalesReceiptSummary = S["SalesReceiptSummary"];
 export type SalesReceipt = S["SalesReceiptRead"];
+
+// Optional features (Settings → Features, onboarding)
+export type FeatureInfo = S["FeatureRead"];
+export type FeaturePreset = S["FeaturePreset"];
+export type FeaturesView = S["FeaturesRead"];

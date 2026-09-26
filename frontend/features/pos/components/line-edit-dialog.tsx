@@ -15,6 +15,7 @@ import { hasPermission, usePosSession } from "@/stores/pos-session-store";
 
 import { requestAuthorization } from "../manager-auth";
 import { DecimalInput } from "./money-input";
+import { usePosFeature } from "../hooks/use-pos-feature";
 
 /** Discounts up to this percent of the amount need only `sales.discount`. */
 export const CASHIER_DISCOUNT_LIMIT_PERCENT = "10";
@@ -51,6 +52,7 @@ function LineEditForm({ line, onClose }: { line: CartLine; onClose: () => void }
   const decimals = line.item.allowsDecimal ? 3 : 0;
   const [quantity, setQuantity] = useState(line.quantity);
   const [price, setPrice] = useState(unitPrice(line) ?? "");
+  const discountsOn = usePosFeature("discounts");
   const [kind, setKind] = useState<LocalDiscount["kind"]>(line.discount?.kind ?? "PERCENT");
   const [value, setValue] = useState(line.discount?.value ?? "");
   const [reason, setReason] = useState(line.discount?.reason ?? "");
@@ -105,7 +107,7 @@ function LineEditForm({ line, onClose }: { line: CartLine; onClose: () => void }
         <p className="rounded-md bg-sky-50 p-2 text-sm text-sky-900 dark:bg-sky-950 dark:text-sky-100">
           Senior citizen / PWD discount applies to this item; other discounts are not allowed.
         </p>
-      ) : (
+      ) : !discountsOn ? null : (
       <div className="space-y-1.5">
         <Label>Discount</Label>
         <div className="flex gap-2">

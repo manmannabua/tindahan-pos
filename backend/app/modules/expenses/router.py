@@ -8,8 +8,10 @@ from app.modules.auth.dependencies import (
     CurrentPrincipal,
     DbSession,
     audit_actor,
+    require_feature,
     require_permission,
 )
+from app.modules.companies.features import Feature
 from app.modules.expenses import service
 from app.modules.expenses.schemas import (
     ExpenseCategoryCreate,
@@ -20,7 +22,7 @@ from app.modules.expenses.schemas import (
 from app.modules.users.permissions import P
 from app.shared.schemas import Page
 
-router = APIRouter(tags=["expenses"])
+router = APIRouter(tags=["expenses"], dependencies=[Depends(require_feature(Feature.EXPENSES))])
 _manage = [Depends(require_permission(P.EXPENSES_MANAGE))]
 
 

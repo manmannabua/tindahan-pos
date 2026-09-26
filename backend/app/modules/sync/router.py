@@ -91,6 +91,7 @@ async def sync_context(device: CurrentDevice, db: DbSession) -> SyncContext:
         receipt_prefix=prefix,
         last_receipt_seq=int(last or 0),
         server_time=datetime.now(UTC),
+        features=company.features,
     )
 
 

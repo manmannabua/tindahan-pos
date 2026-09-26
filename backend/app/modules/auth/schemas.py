@@ -34,6 +34,8 @@ class CompanySummary(ResponseSchema):
     currency: str
     timezone: str
     prices_include_tax: bool
+    features: dict[str, bool]
+    onboarding_completed: bool
 
 
 class MeResponse(ResponseSchema):

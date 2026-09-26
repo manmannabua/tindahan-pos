@@ -15,10 +15,42 @@ test("sign up, manage branches and users, sign out", async ({ page }) => {
   await page.getByLabel("Confirm password").fill("correct-horse-battery");
   await page.getByRole("button", { name: "Create business" }).click();
 
+  // Onboarding wizard: business → store → features (Basic preset) → next steps.
+  await expect(page).toHaveURL(/\/onboarding$/, { timeout: 30_000 }); // first visit compiles the page in dev
+  await expect(page.getByRole("heading", { name: /Let's set up your store/ })).toBeVisible();
+  await page.getByRole("textbox", { name: "TIN" }).fill("123-456-789-000");
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("textbox", { name: "Address" }).fill("123 Rizal Ave, Manila");
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("radio", { name: /^Basic/ }).click();
+  await expect(page.getByRole("switch", { name: "Expenses" })).not.toBeChecked();
+  await expect(page.getByRole("switch", { name: "Stock tracking" })).toBeChecked();
+  await page.getByRole("button", { name: "Continue" }).click();
+  await expect(page.getByRole("heading", { name: "You're set up" })).toBeVisible();
+  await page.getByRole("button", { name: "Go to dashboard" }).click();
+
   await expect(page).toHaveURL(/\/dashboard$/);
   await expect(page.getByRole("heading", { name: "Welcome, Erin" })).toBeVisible();
 
+  // Switched-off features are gone from the menu, and their pages say so.
+  const menu = page.getByRole("navigation", { name: "Main" });
+  await expect(menu.getByRole("link", { name: "Stock", exact: true })).toBeVisible();
+  for (const name of ["Purchase orders", "Customers", "Expenses", "Promotions", "Online catalog"]) {
+    await expect(menu.getByRole("link", { name })).toHaveCount(0);
+  }
+  await page.goto("/expenses");
+  await expect(page.getByRole("heading", { name: "Expenses is turned off" })).toBeVisible();
+
+  // The owner switches Expenses on in Settings → Features.
+  await page.getByRole("link", { name: "Open Features" }).click();
+  await page.getByRole("switch", { name: "Expenses" }).click();
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await expect(page.getByText(/Features saved/)).toBeVisible();
+  await expect(menu.getByRole("link", { name: "Expenses" })).toBeVisible();
+
   // Session survives a reload (access token is memory-only; restored from the refresh cookie).
+  await page.goto("/dashboard");
+  await expect(page.getByRole("heading", { name: "Welcome, Erin" })).toBeVisible();
   await page.reload();
   await expect(page.getByRole("heading", { name: "Welcome, Erin" })).toBeVisible();
 

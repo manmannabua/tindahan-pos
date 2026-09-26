@@ -314,3 +314,5 @@ class SyncContext(ResponseSchema):
     receipt_prefix: str
     last_receipt_seq: int
     server_time: datetime
+    # Optional features the owner has switched on/off (companies/features.py).
+    features: dict[str, bool]

@@ -262,6 +262,8 @@ export interface SyncContext {
   /** BIR registration of this terminal. */
   device_bir?: DeviceBirSync;
   server_time: string;
+  /** Optional features (missing = on). */
+  features?: Record<string, boolean>;
 }
 
 export interface DeviceBirSync {

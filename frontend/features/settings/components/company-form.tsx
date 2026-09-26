@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldContent, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Switch } from "@/components/ui/switch";
+import { useFeature } from "@/features/auth/hooks";
 import { errorMessage } from "@/lib/api/errors";
 import { applyServerErrors, emptyToNull } from "@/lib/forms";
 import type { Company } from "@/types/api";
@@ -31,6 +32,7 @@ type CompanyValues = z.infer<typeof schema>;
 
 export function CompanyForm({ company, readOnly }: { company: Company; readOnly: boolean }) {
   const update = useUpdateCompany();
+  const birOn = useFeature("bir");
   const timezones = useMemo(() => Intl.supportedValuesOf("timeZone").map((tz) => ({ value: tz, label: tz })), []);
   const {
     register,
@@ -127,12 +129,14 @@ export function CompanyForm({ company, readOnly }: { company: Company; readOnly:
                 </Field>
               )}
             />
-            <TextField
-              label="BIR accreditation no."
-              description="The POS software accreditation number printed on receipts."
-              error={errors.bir_accreditation_no?.message}
-              {...register("bir_accreditation_no")}
-            />
+            {birOn && (
+              <TextField
+                label="BIR accreditation no."
+                description="The POS software accreditation number printed on receipts."
+                error={errors.bir_accreditation_no?.message}
+                {...register("bir_accreditation_no")}
+              />
+            )}
           </fieldset>
         </CardContent>
         {!readOnly && (

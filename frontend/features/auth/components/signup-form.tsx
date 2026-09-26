@@ -75,7 +75,7 @@ export function SignupForm() {
     setFormError(null);
     try {
       await signup(values);
-      router.replace("/dashboard");
+      router.replace("/onboarding");
     } catch (error) {
       if (!applyServerErrors(error, setError, FIELDS)) setFormError(errorMessage(error));
     }

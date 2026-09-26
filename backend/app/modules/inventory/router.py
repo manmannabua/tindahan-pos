@@ -8,8 +8,10 @@ from app.modules.auth.dependencies import (
     CurrentPrincipal,
     DbSession,
     audit_actor,
+    require_feature,
     require_permission,
 )
+from app.modules.companies.features import Feature
 from app.modules.inventory import service
 from app.modules.inventory.models import MovementType
 from app.modules.inventory.schemas import (
@@ -21,7 +23,11 @@ from app.modules.inventory.schemas import (
 from app.modules.users.permissions import P
 from app.shared.schemas import Page
 
-router = APIRouter(prefix="/inventory", tags=["inventory"])
+router = APIRouter(
+    prefix="/inventory",
+    tags=["inventory"],
+    dependencies=[Depends(require_feature(Feature.INVENTORY))],
+)
 _read = [Depends(require_permission(P.INVENTORY_READ))]
 
 

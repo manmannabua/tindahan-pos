@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { IMPORT_COLUMNS, parseResult, TEMPLATE_CSV, useImportJob, useUploadImport } from "@/features/imports/api";
+import { useFeature } from "@/features/auth/hooks";
 import { StockLocationSelect } from "@/features/inventory/components/stock-location-select";
 import { errorMessage } from "@/lib/api/errors";
 
@@ -27,6 +28,7 @@ function downloadTemplate() {
 export default function ImportProductsPage() {
   const [file, setFile] = useState<File | null>(null);
   const [locationId, setLocationId] = useState("");
+  const inventoryOn = useFeature("inventory");
   const [jobId, setJobId] = useState<string | null>(null);
   const upload = useUploadImport();
   const job = useImportJob(jobId);
@@ -66,10 +68,12 @@ export default function ImportProductsPage() {
               <Label htmlFor="csv-file">CSV file</Label>
               <Input id="csv-file" type="file" accept=".csv,text/csv" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
             </div>
-            <div className="grid gap-2">
-              <Label>Opening stock location</Label>
-              <StockLocationSelect value={locationId} onChange={setLocationId} allowDefault />
-            </div>
+            {inventoryOn && (
+              <div className="grid gap-2">
+                <Label>Opening stock location</Label>
+                <StockLocationSelect value={locationId} onChange={setLocationId} allowDefault />
+              </div>
+            )}
             <Button onClick={submit} disabled={!file || upload.isPending || running}>
               <UploadIcon /> Import
             </Button>

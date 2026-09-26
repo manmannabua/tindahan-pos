@@ -204,6 +204,44 @@ export interface paths {
         patch: operations["update_current_company_api_v1_companies_current_patch"];
         trace?: never;
     };
+    "/api/v1/companies/current/features": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Features
+         * @description Optional features with their state, descriptions, dependencies and onboarding presets.
+         */
+        get: operations["get_features_api_v1_companies_current_features_get"];
+        /** Update Features */
+        put: operations["update_features_api_v1_companies_current_features_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/companies/current/onboarding/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Complete Onboarding */
+        post: operations["complete_onboarding_api_v1_companies_current_onboarding_complete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/branches": {
         parameters: {
             query?: never;
@@ -1766,7 +1804,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Reports */
+        /**
+         * List Reports
+         * @description Reports of the features this business uses.
+         */
         get: operations["list_reports_api_v1_reports_get"];
         put?: never;
         post?: never;
@@ -2469,6 +2510,15 @@ export interface components {
             };
             /** Is Active */
             is_active: boolean;
+            /**
+             * Features
+             * @description Every optional feature: on/off
+             */
+            features: {
+                [key: string]: boolean;
+            };
+            /** Onboarding Completed */
+            onboarding_completed: boolean;
         };
         /** CompanySummary */
         CompanySummary: {
@@ -2487,6 +2537,12 @@ export interface components {
             timezone: string;
             /** Prices Include Tax */
             prices_include_tax: boolean;
+            /** Features */
+            features: {
+                [key: string]: boolean;
+            };
+            /** Onboarding Completed */
+            onboarding_completed: boolean;
         };
         /** CompanyUpdate */
         CompanyUpdate: {
@@ -2994,6 +3050,49 @@ export interface components {
              * Format: date-time
              */
             received_at: string;
+        };
+        /** FeaturePreset */
+        FeaturePreset: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Description */
+            description: string;
+            /** Features */
+            features: string[];
+        };
+        /** FeatureRead */
+        FeatureRead: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Description */
+            description: string;
+            /** Group */
+            group: string;
+            /** Requires */
+            requires: string[];
+            /** Enabled */
+            enabled: boolean;
+        };
+        /** FeaturesRead */
+        FeaturesRead: {
+            /** Features */
+            features: components["schemas"]["FeatureRead"][];
+            /** Presets */
+            presets: components["schemas"]["FeaturePreset"][];
+        };
+        /**
+         * FeaturesUpdate
+         * @description On/off per feature key; features left out keep their current state.
+         */
+        FeaturesUpdate: {
+            /** Features */
+            features: {
+                [key: string]: boolean;
+            };
         };
         /**
          * FlagStatus
@@ -5507,6 +5606,10 @@ export interface components {
              * Format: date-time
              */
             server_time: string;
+            /** Features */
+            features: {
+                [key: string]: boolean;
+            };
         };
         /** SyncMonitorResponse */
         SyncMonitorResponse: {
@@ -6235,6 +6338,79 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_features_api_v1_companies_current_features_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeaturesRead"];
+                };
+            };
+        };
+    };
+    update_features_api_v1_companies_current_features_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeaturesUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeaturesRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    complete_onboarding_api_v1_companies_current_onboarding_complete_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyRead"];
                 };
             };
         };

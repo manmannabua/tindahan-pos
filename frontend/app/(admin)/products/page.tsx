@@ -20,7 +20,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { usePermissionInAnyScope } from "@/features/auth/hooks";
+import { useFeature, usePermissionInAnyScope } from "@/features/auth/hooks";
 import { useCategories, useProducts, useReference } from "@/features/catalog/api";
 import { flattenCategories } from "@/features/catalog/category-tree";
 import { ProductThumb } from "@/components/shared/product-thumb";
@@ -36,6 +36,10 @@ const ALL = "__all__";
 export default function ProductsPage() {
   const router = useRouter();
   const canWrite = usePermissionInAnyScope(ADMIN_PERM.PRODUCTS_WRITE);
+  const onlineCatalog = useFeature("online_catalog");
+  const scPwd = useFeature("sc_pwd");
+  // Row selection only serves the online-catalog bulk actions.
+  const canSelect = canWrite && onlineCatalog;
   const [search, setSearch] = useState("");
   const [categoryId, setCategoryId] = useState(ALL);
   const [brandId, setBrandId] = useState(ALL);
@@ -100,7 +104,7 @@ export default function ProductsPage() {
             </Link>
             {canWrite && (
               <>
-                <FilterOnlineMenu filter={filter} total={data?.total ?? 0} />
+                {onlineCatalog && <FilterOnlineMenu filter={filter} total={data?.total ?? 0} />}
                 <Link href="/products/import" className={buttonVariants({ variant: "outline" })}>
                   <UploadIcon /> Import
                 </Link>
@@ -128,6 +132,7 @@ export default function ProductsPage() {
           onChange={resetPage(setBrandId)}
           options={[{ value: ALL, label: "All brands" }, ...(brands ?? []).map((b) => ({ value: b.id, label: b.name }))]}
         />
+        {onlineCatalog && (
         <SimpleSelect
           aria-label="Online"
           className="w-full lg:w-40"
@@ -139,6 +144,7 @@ export default function ProductsPage() {
             { value: "no", label: "Not shown online" },
           ]}
         />
+        )}
         <div className="flex items-center gap-2">
           <Switch id="inactive-products" checked={includeInactive} onCheckedChange={resetPage(setIncludeInactive)} />
           <Label htmlFor="inactive-products">Show inactive</Label>
@@ -158,7 +164,7 @@ export default function ProductsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  {canWrite && (
+                  {canSelect && (
                     <TableHead className="w-10">
                       <Checkbox aria-label="Select all on this page" checked={allOnPageSelected} onCheckedChange={togglePage} />
                     </TableHead>
@@ -177,7 +183,7 @@ export default function ProductsPage() {
               <TableBody>
                 {data.items.map((p) => (
                   <TableRow key={p.id} className="h-14 cursor-pointer" onClick={() => router.push(`/products/${p.id}`)}>
-                    {canWrite && (
+                    {canSelect && (
                       <TableCell onClick={(e) => e.stopPropagation()}>
                         <Checkbox aria-label={`Select ${p.name}`} checked={selected.has(p.id)} onCheckedChange={(on) => toggle(p.id, on)} />
                       </TableCell>
@@ -196,8 +202,8 @@ export default function ProductsPage() {
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
                         <ActiveBadge active={p.is_active} />
-                        {p.sc_pwd_eligible && <Badge variant="secondary">SC/PWD</Badge>}
-                        {p.show_online && <Badge variant="outline">Online</Badge>}
+                        {scPwd && p.sc_pwd_eligible && <Badge variant="secondary">SC/PWD</Badge>}
+                        {onlineCatalog && p.show_online && <Badge variant="outline">Online</Badge>}
                       </div>
                     </TableCell>
                   </TableRow>

@@ -22,6 +22,7 @@ import { requestAuthorization } from "../manager-auth";
 import { printWithFeedback } from "../print";
 import { ReadingsCard } from "./readings-card";
 import { DecimalInput } from "./money-input";
+import { usePosFeature } from "../hooks/use-pos-feature";
 
 export function OpenCashSession() {
   const { context, cashier } = usePosSession();
@@ -81,6 +82,7 @@ const MOVEMENTS: { type: CashMovementType; label: string }[] = [
 ];
 
 export function CashView() {
+  const birOn = usePosFeature("bir");
   const { context, cashier, cashSession } = usePosSession();
   const summary = useLiveQuery<SessionSummary | null>(
     async () => (cashSession ? summarizeSession(getDb(), cashSession.id) : null),
@@ -105,7 +107,7 @@ export function CashView() {
         <Button className="h-12 w-full" onClick={() => printSummary(closed)}>
           <PrinterIcon /> Print summary
         </Button>
-        <ReadingsCard shiftStart={closed.session.openedAt} />
+        {birOn && <ReadingsCard shiftStart={closed.session.openedAt} />}
         <Button variant="outline" className="h-12 w-full" onClick={() => usePosSession.getState().setCashSession(null)}>
           Done
         </Button>
@@ -184,7 +186,7 @@ export function CashView() {
             </Button>
           </CardContent>
         </Card>
-        <ReadingsCard shiftStart={cashSession.openedAt} />
+        {birOn && <ReadingsCard shiftStart={cashSession.openedAt} />}
       </div>
     </div>
   );

@@ -4,11 +4,17 @@ operations `sale.void` and `return.create`, which call the same service function
 import uuid
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Request, status
+from fastapi import APIRouter, Depends, Request, status
 from uuid_utils.compat import uuid7
 
 from app.modules.audit import service as audit
-from app.modules.auth.dependencies import CurrentPrincipal, DbSession, audit_actor
+from app.modules.auth.dependencies import (
+    CurrentPrincipal,
+    DbSession,
+    audit_actor,
+    require_feature,
+)
+from app.modules.companies.features import Feature
 from app.modules.returns import service
 from app.modules.returns.schemas import ReturnCreate, ReturnRead, VoidRequest
 from app.modules.sales.models import Sale
@@ -54,7 +60,12 @@ async def void_sale(
     return SaleDetail.model_validate(await get_sale(db, principal, sale_id))
 
 
-@router.post("/returns", response_model=ReturnRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/returns",
+    response_model=ReturnRead,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_feature(Feature.RETURNS))],
+)
 async def create_return(
     data: ReturnCreate, principal: CurrentPrincipal, request: Request, db: DbSession
 ) -> ReturnRead:
@@ -98,7 +109,11 @@ async def create_return(
     )
 
 
-@router.get("/returns/{return_id}", response_model=ReturnRead)
+@router.get(
+    "/returns/{return_id}",
+    response_model=ReturnRead,
+    dependencies=[Depends(require_feature(Feature.RETURNS))],
+)
 async def get_return(
     return_id: uuid.UUID, principal: CurrentPrincipal, db: DbSession
 ) -> ReturnRead:

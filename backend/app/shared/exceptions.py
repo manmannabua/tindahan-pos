@@ -29,6 +29,13 @@ class NotFoundError(AppError):
     code = "not_found"
 
 
+class FeatureDisabledError(AppError):
+    """An optional feature the company has switched off (companies/features.py)."""
+
+    status_code = 403
+    code = "feature.disabled"
+
+
 class ConflictError(AppError):
     status_code = 409
     code = "conflict"

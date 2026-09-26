@@ -9,7 +9,9 @@ from app.modules.auth.dependencies import (
     DbSession,
     audit_actor,
     require_any_permission,
+    require_feature,
 )
+from app.modules.companies.features import Feature
 from app.modules.purchasing import service
 from app.modules.purchasing.models import POStatus
 from app.modules.purchasing.schemas import (
@@ -22,7 +24,7 @@ from app.modules.purchasing.schemas import (
 from app.modules.users.permissions import P
 from app.shared.schemas import Page
 
-router = APIRouter(tags=["purchasing"])
+router = APIRouter(tags=["purchasing"], dependencies=[Depends(require_feature(Feature.PURCHASING))])
 _view = [Depends(require_any_permission(P.PURCHASING_MANAGE, P.PURCHASING_RECEIVE))]
 
 

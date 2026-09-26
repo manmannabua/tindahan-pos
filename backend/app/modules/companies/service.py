@@ -1,6 +1,7 @@
 """Company (tenant) lifecycle."""
 
 import uuid
+from datetime import UTC, datetime
 from zoneinfo import available_timezones
 
 from sqlalchemy import select
@@ -10,11 +11,20 @@ from app.core.security import hash_secret
 from app.modules.audit import service as audit
 from app.modules.audit.service import AuditActor
 from app.modules.branches.models import Branch, LocationType, StockLocation
+from app.modules.companies.features import FEATURES, PRESETS, Feature, missing_requirements
 from app.modules.companies.models import Company
-from app.modules.companies.schemas import CompanyUpdate, SignupRequest
+from app.modules.companies.schemas import (
+    CompanyUpdate,
+    FeaturePreset,
+    FeatureRead,
+    FeaturesRead,
+    FeaturesUpdate,
+    SignupRequest,
+)
 from app.modules.expenses import service as expenses_service
 from app.modules.payments import service as payments_service
 from app.modules.pricing import service as pricing_service
+from app.modules.storefront import cache as storefront_cache
 from app.modules.units.service import seed_default_units
 from app.modules.users.models import Role, RolePermission, User, UserRole
 from app.modules.users.permissions import DEFAULT_ROLES
@@ -130,4 +140,75 @@ async def update_company(
     )
     await db.commit()
     await db.refresh(company)
+    return company
+
+
+def features_view(company: Company) -> FeaturesRead:
+    state = company.features
+    return FeaturesRead(
+        features=[
+            FeatureRead(
+                key=f.value,
+                label=info.label,
+                description=info.description,
+                group=info.group,
+                requires=[r.value for r in info.requires],
+                enabled=state[f.value],
+            )
+            for f, info in FEATURES.items()
+        ],
+        presets=[
+            FeaturePreset(key=key, label=label, description=description, features=sorted(on))
+            for key, (label, description, on) in PRESETS.items()
+        ],
+    )
+
+
+async def update_features(
+    db: AsyncSession, company_id: uuid.UUID, data: FeaturesUpdate, actor: AuditActor
+) -> Company:
+    company = await get_company(db, company_id)
+    known = {f.value: f for f in Feature}
+    if unknown := sorted(set(data.features) - set(known)):
+        raise BusinessRuleError(
+            "Unknown feature", code="feature.unknown", details={"features": unknown}
+        )
+    before = company.features
+    state = {f: before[f.value] for f in Feature} | {known[k]: v for k, v in data.features.items()}
+    if missing := missing_requirements(state):
+        feature, required = missing[0]
+        raise BusinessRuleError(
+            f"{FEATURES[feature].label} needs {FEATURES[required].label}",
+            code="feature.requires",
+            details={"feature": feature.value, "requires": required.value},
+        )
+    company.feature_choices = {f.value: on for f, on in state.items()}
+    changes = {k: [before[k], v] for k, v in company.features.items() if before[k] != v}
+    if changes:
+        audit.record(
+            db,
+            actor,
+            "company.features_changed",
+            entity_type="company",
+            entity_id=company.id,
+            changes=changes,
+        )
+    await db.commit()
+    await db.refresh(company)
+    if changes:
+        await storefront_cache.invalidate(company.id)
+    return company
+
+
+async def complete_onboarding(
+    db: AsyncSession, company_id: uuid.UUID, actor: AuditActor
+) -> Company:
+    company = await get_company(db, company_id)
+    if company.onboarding_completed_at is None:
+        company.onboarding_completed_at = datetime.now(UTC)
+        audit.record(
+            db, actor, "company.onboarding_completed", entity_type="company", entity_id=company.id
+        )
+        await db.commit()
+        await db.refresh(company)
     return company

@@ -37,6 +37,7 @@ test("catalog → purchasing → stock → report export", async ({ page }) => {
     owner_password: PASSWORD,
   });
   const login = await api<{ access_token: string }>("/auth/login", { email, password: PASSWORD });
+  await api("/companies/current/onboarding/complete", {}, login.access_token);
   await api("/suppliers", { code: "SUP1", name: "Metro Distributors" }, login.access_token);
 
   await page.goto("/login");

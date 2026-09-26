@@ -10,6 +10,7 @@ Usage in routers:
 Authorization is always enforced here or in services — never only in the frontend.
 """
 
+import uuid
 from typing import Annotated
 
 from fastapi import Depends, Request
@@ -22,12 +23,13 @@ from app.core.rate_limit import enforce_rate_limit
 from app.core.security import InvalidTokenError, TokenClaims, TokenType, decode_jwt
 from app.modules.audit.service import AuditActor
 from app.modules.auth.principal import DevicePrincipal, Principal
+from app.modules.companies.features import FEATURES, Feature
 from app.modules.companies.models import Company
 from app.modules.devices.models import Device, DeviceStatus
 from app.modules.users.models import User
 from app.modules.users.permissions import P
 from app.modules.users.repository import load_permission_scopes
-from app.shared.exceptions import AuthenticationError
+from app.shared.exceptions import AuthenticationError, FeatureDisabledError
 
 _bearer = HTTPBearer(auto_error=False)
 USER_REQUESTS_PER_MINUTE = 600
@@ -136,6 +138,25 @@ def require_any_permission(*permissions: P):  # type: ignore[no-untyped-def]
         if not any(principal.has_in_any_scope(p) for p in permissions):
             principal.require(permissions[0])  # raises with a consistent error body
         return principal
+
+    return dependency
+
+
+async def ensure_feature(db: AsyncSession, company_id: uuid.UUID, feature: Feature) -> None:
+    company = await db.get(Company, company_id)  # identity map: one query per request
+    if company is None or not company.has_feature(feature):
+        raise FeatureDisabledError(
+            f"{FEATURES[feature].label} is turned off for this business. "
+            "The owner can turn it on in Settings → Features.",
+            details={"feature": feature.value},
+        )
+
+
+def require_feature(feature: Feature):  # type: ignore[no-untyped-def]
+    """Dependency factory: the optional `feature` must be on for the user's company."""
+
+    async def dependency(principal: CurrentPrincipal, db: DbSession) -> None:
+        await ensure_feature(db, principal.company_id, feature)
 
     return dependency
 

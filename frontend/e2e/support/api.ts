@@ -66,6 +66,8 @@ export async function seedCompany(options: {
     method: "POST",
     body: { email, password: PASSWORD },
   });
+  // A seeded business is already set up (skip the onboarding wizard; all features on).
+  await call("/companies/current/onboarding/complete", { method: "POST", token });
   const branch = await call<{ locations: { id: string; is_default: boolean }[] }>(`/branches/${signup.branch_id}`, { token });
   const locationId = branch.locations.find((l) => l.is_default)?.id ?? "";
   const units = await call<{ id: string; code: string }[]>("/units", { token });

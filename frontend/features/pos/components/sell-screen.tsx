@@ -28,6 +28,7 @@ import { PaymentDialog } from "./payment-dialog";
 import { SaleCompleteDialog } from "./sale-complete-dialog";
 import { ScanBar } from "./scan-bar";
 import { StatutoryDialog } from "./statutory-dialog";
+import { usePosFeature } from "../hooks/use-pos-feature";
 
 export function SellScreen() {
   const { context, cashier, cashSession } = usePosSession();
@@ -37,6 +38,9 @@ export function SellScreen() {
   const [completed, setCompleted] = useState<{ sale: LocalSale; receiptId: string | null } | null>(null);
   const [showHeld, setShowHeld] = useState(false);
   const [showDiscount, setShowDiscount] = useState(false);
+  const customersOn = usePosFeature("customers");
+  const discountsOn = usePosFeature("discounts");
+  const scPwdOn = usePosFeature("sc_pwd");
   const [showCustomer, setShowCustomer] = useState(false);
   const [showStatutory, setShowStatutory] = useState(false);
   const heldCount = useLiveQuery(() => getDb().heldCarts.count(), [], 0);
@@ -124,6 +128,7 @@ export function SellScreen() {
       </section>
 
       <aside className="flex flex-col gap-3">
+        {customersOn && (
         <div className="flex items-center gap-2 rounded-xl border bg-background px-3 py-2">
           <UserIcon className="size-4 text-muted-foreground" />
           <span className="flex-1 truncate text-sm" data-testid="cart-customer">
@@ -139,6 +144,7 @@ export function SellScreen() {
             </Button>
           )}
         </div>
+        )}
         {cart.statutory && (
           <div
             data-testid="statutory-banner"
@@ -182,9 +188,11 @@ export function SellScreen() {
           <WalletIcon className="size-5" /> Pay
         </Button>
         <div className="grid grid-cols-2 gap-2">
-          <Button variant="outline" className="h-12" disabled={!calc} onClick={() => setShowDiscount(true)}>
-            <BadgePercentIcon /> Discount
-          </Button>
+          {discountsOn && (
+            <Button variant="outline" className="h-12" disabled={!calc} onClick={() => setShowDiscount(true)}>
+              <BadgePercentIcon /> Discount
+            </Button>
+          )}
           <Button variant="outline" className="h-12" disabled={cart.lines.length === 0} onClick={() => void hold()}>
             <PauseIcon /> Hold
           </Button>
@@ -199,9 +207,11 @@ export function SellScreen() {
           >
             <Trash2Icon /> Clear
           </Button>
-          <Button variant="outline" className="col-span-2 h-12" onClick={() => setShowStatutory(true)}>
-            <HeartHandshakeIcon /> Senior / PWD
-          </Button>
+          {scPwdOn && (
+            <Button variant="outline" className="col-span-2 h-12" onClick={() => setShowStatutory(true)}>
+              <HeartHandshakeIcon /> Senior / PWD
+            </Button>
+          )}
         </div>
       </aside>
 

@@ -16,6 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useFeature } from "@/features/auth/hooks";
 import { errorMessage } from "@/lib/api/errors";
 import { applyServerErrors, emptyToNull } from "@/lib/forms";
 import type { Device } from "@/types/api";
@@ -49,6 +50,7 @@ function toValues(device: Device | null): DeviceValues {
  */
 export function DeviceEditDialog({ device, onOpenChange }: { device: Device | null; onOpenChange: (open: boolean) => void }) {
   const update = useUpdateDevice(device?.id ?? "");
+  const birOn = useFeature("bir");
   const {
     register,
     handleSubmit,
@@ -82,16 +84,20 @@ export function DeviceEditDialog({ device, onOpenChange }: { device: Device | nu
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Edit terminal {device?.terminal_code}</DialogTitle>
-          <DialogDescription>BIR details print on receipts and X/Z readings after the terminal next syncs.</DialogDescription>
+          <DialogDescription>
+            {birOn ? "BIR details print on receipts and X/Z readings after the terminal next syncs." : "The name shown for this terminal."}
+          </DialogDescription>
         </DialogHeader>
         <form id="device-form" onSubmit={onSubmit} className="grid gap-4" noValidate>
           <TextField label="Name" error={errors.name?.message} {...register("name")} />
+          {birOn && (
           <div className="grid gap-4 sm:grid-cols-2">
             <TextField label="Machine identification no. (MIN)" error={errors.bir_min?.message} {...register("bir_min")} />
             <TextField label="Serial number" error={errors.bir_serial_number?.message} {...register("bir_serial_number")} />
             <TextField label="PTU number" error={errors.bir_ptu_number?.message} {...register("bir_ptu_number")} />
             <TextField label="PTU issued on" type="date" error={errors.bir_ptu_issued_on?.message} {...register("bir_ptu_issued_on")} />
           </div>
+          )}
         </form>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>

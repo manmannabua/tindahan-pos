@@ -9,6 +9,7 @@ import { beep } from "@/lib/pos/feedback";
 import { checkStock } from "@/lib/pos/stock-check";
 import { useCartStore } from "@/stores/cart-store";
 import { usePosSession } from "@/stores/pos-session-store";
+import { usePosFeature } from "./use-pos-feature";
 
 export type ScanOutcome = "added" | "not_found" | "inactive";
 
@@ -21,7 +22,8 @@ export function useScanToCart(): {
   addVariant: (variantId: string) => Promise<void>;
 } {
   const sound = usePosSession((s) => s.context?.settings.scannerSound ?? true);
-  const warnStock = usePosSession((s) => s.context?.settings.warnOnNegativeStock ?? true);
+  const inventoryOn = usePosFeature("inventory");
+  const warnStock = usePosSession((s) => s.context?.settings.warnOnNegativeStock ?? true) && inventoryOn;
   const locationId = usePosSession((s) => s.context?.device.defaultStockLocationId ?? null);
 
   const warnIfShort = useCallback(

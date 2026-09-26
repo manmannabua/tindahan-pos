@@ -20,6 +20,7 @@ import { usePosSession } from "@/stores/pos-session-store";
 import { printJournalReceipt } from "../print";
 import { ReturnDialog, type ReturnTarget } from "./return-dialog";
 import { VoidDialog } from "./void-dialog";
+import { usePosFeature } from "../hooks/use-pos-feature";
 
 const SYNC_TONE: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   SYNCED: "secondary",
@@ -43,6 +44,7 @@ export function SalesHistory() {
   const [receiptQuery, setReceiptQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const online = useTerminalStore((s) => s.connectivity) !== "offline";
+  const returnsOn = usePosFeature("returns");
   if (!context) return null;
 
   // Reprints come from the receipt journal (the stored copy); older sales get an entry first.
@@ -79,6 +81,7 @@ export function SalesHistory() {
   return (
     <div className="mx-auto w-full max-w-4xl p-4">
       <h1 className="mb-3 text-xl font-semibold">Recent sales</h1>
+      {returnsOn && (
       <form
         className="mb-3 flex gap-2"
         onSubmit={(e) => {
@@ -97,6 +100,7 @@ export function SalesHistory() {
           <SearchIcon /> Find
         </Button>
       </form>
+      )}
       <ul className="divide-y rounded-xl border bg-background" aria-label="Recent sales">
         {sales.map((s) => {
           const completed = s.status === "COMPLETED";
@@ -119,9 +123,11 @@ export function SalesHistory() {
                 <Button size="icon-lg" variant="outline" aria-label={`Reprint ${s.receiptNumber}`} onClick={() => void reprint(s.id)}>
                   <PrinterIcon />
                 </Button>
-                <Button size="icon-lg" variant="outline" aria-label={`Return items of ${s.receiptNumber}`} disabled={!completed} onClick={() => setReturning({ saleId: s.id, receiptNumber: s.receiptNumber, remote: null })}>
-                  <Undo2Icon />
-                </Button>
+                {returnsOn && (
+                  <Button size="icon-lg" variant="outline" aria-label={`Return items of ${s.receiptNumber}`} disabled={!completed} onClick={() => setReturning({ saleId: s.id, receiptNumber: s.receiptNumber, remote: null })}>
+                    <Undo2Icon />
+                  </Button>
+                )}
                 <Button size="icon-lg" variant="outline" aria-label={`Void ${s.receiptNumber}`} disabled={!canVoid} onClick={() => setVoiding(s)}>
                   <XCircleIcon />
                 </Button>

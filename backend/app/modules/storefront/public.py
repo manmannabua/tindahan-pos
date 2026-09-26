@@ -21,6 +21,7 @@ from sqlalchemy.orm import InstrumentedAttribute
 from app.modules.branches.models import Branch, LocationType, StockLocation
 from app.modules.brands.models import Brand
 from app.modules.categories.models import Category
+from app.modules.companies.features import Feature
 from app.modules.companies.models import Company
 from app.modules.devices.models import Device, DeviceStatus
 from app.modules.inventory.models import InventoryBalance
@@ -68,9 +69,17 @@ async def resolve_store(db: AsyncSession, slug: str) -> Store:
             )
         )
     ).first()
-    if row is None:
+    # The owner switched the whole feature off: the link disappears like a disabled catalog.
+    if row is None or not row[1].has_feature(Feature.ONLINE_CATALOG):
         raise _not_found()
     return Store(storefront=row[0], company=row[1])
+
+
+def stock_display(store: Store) -> StockDisplay:
+    """What the public sees about stock; nothing when the business doesn't track stock."""
+    if not store.company.has_feature(Feature.INVENTORY):
+        return StockDisplay.HIDDEN
+    return StockDisplay(store.storefront.stock_display)
 
 
 def _published(company_id: uuid.UUID) -> Select[Product]:
@@ -139,7 +148,7 @@ async def store_info(db: AsyncSession, store: Store) -> PublicStore:
         hours=sf.hours,
         currency=company.currency,
         show_prices=sf.show_prices,
-        stock_display=StockDisplay(sf.stock_display),
+        stock_display=stock_display(store),
         allow_indexing=sf.allow_indexing,
         branches=await _branches(db, store),
         categories=categories,
@@ -297,8 +306,9 @@ async def _build(
         ).all()
     }
 
-    show_stock = sf.stock_display != StockDisplay.HIDDEN
-    show_qty = sf.stock_display == StockDisplay.QUANTITY
+    display = stock_display(store)
+    show_stock = display != StockDisplay.HIDDEN
+    show_qty = display == StockDisplay.QUANTITY
     by_product: dict[uuid.UUID, list[ProductVariant]] = {}
     for v in variants:
         by_product.setdefault(v.product_id, []).append(v)

@@ -14,7 +14,7 @@ function user(permissions: string[], branch_permissions: Record<string, string[]
     username: "u",
     full_name: "U",
     has_pin: false,
-    company: { id: "c", code: "C", name: "C", currency: "PHP", timezone: "Asia/Manila", prices_include_tax: true },
+    company: { id: "c", code: "C", name: "C", currency: "PHP", timezone: "Asia/Manila", prices_include_tax: true, features: {}, onboarding_completed: true },
     device_id: null,
     permissions,
     branch_permissions,

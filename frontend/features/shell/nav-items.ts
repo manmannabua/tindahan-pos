@@ -20,6 +20,7 @@ import {
   ShieldCheckIcon,
   ShoppingCartIcon,
   TagsIcon,
+  ToggleRightIcon,
   TruckIcon,
   UsersIcon,
   WalletIcon,
@@ -80,6 +81,7 @@ export const NAV_ITEMS: NavItem[] = [
   { section: "Administration", href: "/devices", label: "Devices", icon: MonitorSmartphoneIcon, permission: PERM.DEVICES_MANAGE },
   { section: "Administration", href: "/audit", label: "Audit log", icon: HistoryIcon, permission: PERM.AUDIT_VIEW },
   { section: "Administration", href: "/settings/company", label: "Company", icon: SettingsIcon, permission: PERM.COMPANY_MANAGE },
+  { section: "Administration", href: "/settings/features", label: "Features", icon: ToggleRightIcon, permission: PERM.COMPANY_MANAGE },
 ];
 
 /** The most specific nav item matching the path (so /inventory/counts doesn't also light /inventory). */

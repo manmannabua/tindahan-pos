@@ -3,6 +3,7 @@
 import { useShallow } from "zustand/react/shallow";
 
 import { hasPermission, hasPermissionInAnyScope } from "@/lib/auth/permissions";
+import { type FeatureKey, isFeatureOn } from "@/lib/features";
 import { useAuthStore } from "@/stores/auth-store";
 
 export function useSession() {
@@ -20,4 +21,9 @@ export function usePermission(permission: string, branchId?: string | null): boo
 /** Mirrors backend `require_permission`: granted in at least one scope. Use for navigation. */
 export function usePermissionInAnyScope(permission: string): boolean {
   return useAuthStore((s) => hasPermissionInAnyScope(s.user, permission));
+}
+
+/** Is an optional feature switched on for this business? UI gating only — the server enforces. */
+export function useFeature(feature: FeatureKey): boolean {
+  return useAuthStore((s) => isFeatureOn(s.user?.company.features, feature));
 }

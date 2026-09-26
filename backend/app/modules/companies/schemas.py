@@ -42,6 +42,8 @@ class CompanyRead(ResponseSchema):
     bir_accreditation_no: str | None
     settings: dict[str, Any]
     is_active: bool
+    features: dict[str, bool] = Field(description="Every optional feature: on/off")
+    onboarding_completed: bool
 
 
 class CompanyUpdate(Schema):
@@ -59,3 +61,30 @@ class SignupResponse(ResponseSchema):
     company: CompanyRead
     owner_user_id: uuid.UUID
     branch_id: uuid.UUID
+
+
+class FeatureRead(ResponseSchema):
+    key: str
+    label: str
+    description: str
+    group: str
+    requires: list[str]
+    enabled: bool
+
+
+class FeaturePreset(ResponseSchema):
+    key: str
+    label: str
+    description: str
+    features: list[str]
+
+
+class FeaturesRead(ResponseSchema):
+    features: list[FeatureRead]
+    presets: list[FeaturePreset]
+
+
+class FeaturesUpdate(Schema):
+    """On/off per feature key; features left out keep their current state."""
+
+    features: dict[str, bool] = Field(max_length=50)

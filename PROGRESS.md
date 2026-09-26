@@ -227,11 +227,25 @@ Last updated: 2026-09-26
 - Prints trigger an immediate sync. Online catalog: measured units show their symbol
   ("₱52.00 / kg", "100 kg left"; `unit_symbol` in the public API).
 
-**Current checks (all green):** backend `pytest` 163 · ruff · mypy strict. Frontend lint ·
-typecheck · 259 Vitest · build · **10/10 Playwright** (admin, catalog→PO→report export, offline
-20-sale critical test incl. one journal entry per sale, two-terminal oversell, Phase 7 offline
-promo/customer/void/return, offline SC sale + cross-terminal return, online catalog, offline
-receipt journal + reprint → server, smoke).
+### Optional features + onboarding ✅ (docs/FEATURES_AND_ONBOARDING.md)
+- 12 owner-switchable features (stock, purchasing, customers, promotions, manual discounts,
+  returns, cash drawer, expenses, SC/PWD, BIR, online catalog, receipt journal screens) with
+  dependencies and presets (Basic / Standard / Everything). `companies.features` (missing = on),
+  `PUT /companies/current/features` (owners, audited), `require_feature` on routers/routes/
+  reports → `403 feature.disabled`; sync never gated. Public catalog 404 when off; no stock
+  shown online without stock tracking.
+- Admin: Settings → Features, sidebar + route guard ("X is turned off"), in-page gating.
+  POS: features via `/sync/context` → IndexedDB, read live (`usePosFeature`): Customer /
+  Discount / Senior-PWD buttons, Cash tab (no session required when off; a Readings tab for
+  BIR), returns, Receipts tab, promotions, stock warning.
+- Onboarding wizard for new sign-ups (business → store → features → next steps); existing
+  companies were marked onboarded by migration `8f9e3d20bc71`.
+
+**Current checks (all green):** backend `pytest` 171 · ruff · mypy strict. Frontend lint ·
+typecheck · 264 Vitest · build · **11/11 Playwright** (sign-up + onboarding + feature switching,
+catalog→PO→report export, offline 20-sale critical test incl. journal, two-terminal oversell,
+Phase 7 offline promo/customer/void/return, offline SC sale + cross-terminal return, online
+catalog, offline receipt journal, POS feature switches, smoke).
 
 ## Next (suggested)
 1. Deploy a staging VM with `docker-compose.prod.yml` (never run yet: no Docker on the dev
@@ -271,6 +285,10 @@ receipt journal + reprint → server, smoke).
   cannot run here until Redis (or Memurai) is installed; tasks are tested by direct calls.
 - PostgreSQL 17 runs as a Windows service; superuser `postgres`/`postgres` (dev only);
   app role `pos`/`pos`; databases `pos` (dev) and `pos_test` (tests drop/recreate schema).
+- Refresh-token rotation edge case: if a page reload aborts an in-flight `/auth/refresh`, the
+  browser never stores the rotated cookie and the next refresh gets `auth.refresh_race` (401) →
+  the user must sign in again. Consider answering a within-grace reuse with a fresh token of the
+  same family instead of 401.
 - Port 8000 on this machine is currently taken by another project (a Laravel dev server from
   `D:/dev/booking-system`). This session ran the POS backend on **8010**: start the web app with
   `API_ORIGIN=http://localhost:8010` and e2e with `E2E_API_URL=http://localhost:8010/api/v1`.
@@ -302,7 +320,7 @@ receipt journal + reprint → server, smoke).
   sync → server check; `TERMINAL=T02` for a second terminal). Screenshots per step.
 
 ## Pending migrations
-- None pending. Latest: `fbaf8685d085` receipt journal (before it: `5f5a4551ceb3` storefronts + `products.show_online`, `e1c3cb7b756c` SC/PWD discount + BIR fields, `ff379da3c120` import jobs + trigram search). Revisions (in order): `ef8f6c10c69c` foundation, `1e3cfbdadecb` catalog and
+- None pending. Latest: `8f9e3d20bc71` company features + onboarding (before it: `fbaf8685d085` receipt journal, `5f5a4551ceb3` storefronts + `products.show_online`, `e1c3cb7b756c` SC/PWD discount + BIR fields, `ff379da3c120` import jobs + trigram search). Revisions (in order): `ef8f6c10c69c` foundation, `1e3cfbdadecb` catalog and
   inventory ledger, `43cc34f6bf79` sales/payments/cash sessions/sync, `311a2c40e3d3` inventory
   documents, `34f69fa13fd1` suppliers and purchasing, `428f5d187452` customers/returns/
   promotions, `c5a1c4ea7bf5` expenses and report exports. Run `uv run alembic upgrade head`.

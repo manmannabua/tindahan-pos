@@ -34,6 +34,10 @@ export interface CompanySummary {
   currency: string;
   timezone: string;
   prices_include_tax: boolean;
+  /** Optional features (key → on/off), see lib/features.ts. */
+  features: Record<string, boolean>;
+  /** False until the owner finishes the onboarding wizard. */
+  onboarding_completed: boolean;
 }
 
 export interface Me {
@@ -95,6 +99,8 @@ export interface Company {
   bir_accreditation_no: string | null;
   settings: Record<string, unknown>;
   is_active: boolean;
+  features: Record<string, boolean>;
+  onboarding_completed: boolean;
 }
 
 export interface SignupResponse {

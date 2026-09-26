@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { usePermission } from "@/features/auth/hooks";
+import { useFeature, usePermission } from "@/features/auth/hooks";
 import { useBranchLabels } from "@/features/branches/api";
 import { useLabels } from "@/features/catalog/api";
 import { useReceipts } from "@/features/receipts/api";
@@ -44,13 +44,15 @@ export default function SaleDetailPage() {
   const methods = useLabels("payment-methods", (m) => m.name);
   const branches = useBranchLabels();
   const canVoid = usePermission(ADMIN_PERM.SALES_VOID, sale?.branch_id);
-  const canReturn = usePermission(ADMIN_PERM.RETURNS_CREATE, sale?.branch_id);
+  const returnsOn = useFeature("returns");
+  const journalOn = useFeature("receipt_journal");
+  const canReturn = usePermission(ADMIN_PERM.RETURNS_CREATE, sale?.branch_id) && returnsOn;
   const voidSale = useVoidSale(saleId);
   const [voiding, setVoiding] = useState(false);
   const [voidReason, setVoidReason] = useState("");
   const [returning, setReturning] = useState(false);
   const [viewing, setViewing] = useState<string | null>(null);
-  const receipts = useReceipts({ sale_id: saleId, kind: "SALE", limit: 1, offset: 0 }, Boolean(saleId));
+  const receipts = useReceipts({ sale_id: saleId, kind: "SALE", limit: 1, offset: 0 }, Boolean(saleId) && journalOn);
   const saleReceipt = receipts.data?.items[0];
 
   if (isPending) return <TableSkeleton />;

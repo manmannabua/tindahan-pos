@@ -77,6 +77,7 @@ export async function applyContext(db: PosDatabase, context: SyncContext): Promi
         ptuIssuedOn: context.device_bir.ptu_issued_on,
       });
     }
+    if (context.features) await setMeta(db, "features", context.features);
     const localSeq = (await getMeta(db, "receiptSeq")) ?? 0;
     await setMeta(db, "receiptSeq", Math.max(localSeq, context.last_receipt_seq));
   });

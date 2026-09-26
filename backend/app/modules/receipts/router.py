@@ -4,14 +4,24 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
 
-from app.modules.auth.dependencies import CurrentPrincipal, DbSession, require_permission
+from app.modules.auth.dependencies import (
+    CurrentPrincipal,
+    DbSession,
+    require_feature,
+    require_permission,
+)
+from app.modules.companies.features import Feature
 from app.modules.receipts import service
 from app.modules.receipts.models import ReceiptKind
 from app.modules.receipts.schemas import SalesReceiptRead, SalesReceiptSummary
 from app.modules.users.permissions import P
 from app.shared.schemas import Page
 
-router = APIRouter(prefix="/receipts", tags=["receipts"])
+router = APIRouter(
+    prefix="/receipts",
+    tags=["receipts"],
+    dependencies=[Depends(require_feature(Feature.RECEIPT_JOURNAL))],
+)
 _view = [Depends(require_permission(P.SALES_VIEW))]
 
 

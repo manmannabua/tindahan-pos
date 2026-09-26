@@ -52,6 +52,8 @@ export interface MetaValues {
   persistentStorage: boolean;
   /** BIR registration of this terminal (from /sync/context). */
   deviceBir: DeviceBir;
+  /** Optional features the owner switched on/off (from /sync/context; missing = on). */
+  features: Record<string, boolean>;
   /** Accumulated grand total of completed sales on this terminal. Never reset. */
   grandTotal: string;
   /** Number of Z-readings printed on this terminal. */

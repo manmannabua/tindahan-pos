@@ -15,6 +15,7 @@ from app.modules.auth.dependencies import (
     CurrentPrincipal,
     DbSession,
     audit_actor,
+    ensure_feature,
     require_permission,
 )
 from app.modules.auth.principal import Principal
@@ -79,10 +80,13 @@ def _options(
 
 
 @router.get("", response_model=list[ReportInfo], dependencies=_view)
-async def list_reports() -> list[ReportInfo]:
+async def list_reports(principal: CurrentPrincipal, db: DbSession) -> list[ReportInfo]:
+    """Reports of the features this business uses."""
+    company = await db.get(Company, principal.company_id)
     return [
         ReportInfo(name=name, title=d.title, has_financial_fields=bool(d.financial))
         for name, d in REPORTS.items()
+        if d.feature is None or (company is not None and company.has_feature(d.feature))
     ]
 
 
@@ -99,6 +103,8 @@ async def run_report(
     device_id: uuid.UUID | None = None,
 ) -> ReportResult:
     definition = _definition(name)
+    if definition.feature:
+        await ensure_feature(db, principal.company_id, definition.feature)
     company = await db.get(Company, principal.company_id)
     assert company is not None  # noqa: S101
     period = make_period(date_from, date_to, company.timezone)
@@ -171,7 +177,8 @@ async def export_report(
     device_id: uuid.UUID | None = None,
 ) -> ExportRead:
     """Queue a CSV export. Poll `GET /reports/exports/{id}`, then download it."""
-    _definition(name)
+    if (definition := _definition(name)).feature:
+        await ensure_feature(db, principal.company_id, definition.feature)
     company = await db.get(Company, principal.company_id)
     assert company is not None  # noqa: S101
     period = make_period(date_from, date_to, company.timezone)

@@ -10,8 +10,10 @@ from app.modules.auth.dependencies import (
     DbSession,
     audit_actor,
     client_ip,
+    require_feature,
     require_permission,
 )
+from app.modules.companies.features import Feature
 from app.modules.storefront import cache, public, service
 from app.modules.storefront.schemas import (
     ProductsOnlineResult,
@@ -26,7 +28,9 @@ from app.modules.users.permissions import P
 
 # ---------------------------------------------------------------- owner / admin
 
-router = APIRouter(tags=["storefront"])
+router = APIRouter(
+    tags=["storefront"], dependencies=[Depends(require_feature(Feature.ONLINE_CATALOG))]
+)
 
 
 @router.get(

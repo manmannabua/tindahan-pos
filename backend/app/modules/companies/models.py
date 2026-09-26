@@ -1,9 +1,11 @@
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy import Boolean, Index, String, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.modules.companies.features import effective
 from app.shared.models import Base, SyncTrackedMixin, TimestampMixin, UUIDPrimaryKeyMixin
 
 
@@ -24,4 +26,22 @@ class Company(UUIDPrimaryKeyMixin, TimestampMixin, SyncTrackedMixin, Base):
     vat_registered: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
     bir_accreditation_no: Mapped[str | None] = mapped_column(String(64))
     settings: Mapped[dict[str, Any]] = mapped_column(JSONB, server_default=text("'{}'::jsonb"))
+    # Explicit on/off choices per optional feature (companies/features.py); missing = on.
+    feature_choices: Mapped[dict[str, Any]] = mapped_column(
+        "features", JSONB, server_default=text("'{}'::jsonb")
+    )
+    # Null until the owner finishes (or skips) the onboarding wizard.
+    onboarding_completed_at: Mapped[datetime | None]
     is_active: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
+
+    @property
+    def features(self) -> dict[str, bool]:
+        """Every optional feature with its effective state (dependencies applied)."""
+        return {f.value: on for f, on in effective(self.feature_choices).items()}
+
+    @property
+    def onboarding_completed(self) -> bool:
+        return self.onboarding_completed_at is not None
+
+    def has_feature(self, feature: str) -> bool:
+        return self.features.get(feature, True)

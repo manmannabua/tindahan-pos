@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { hasPermissionInAnyScope } from "@/lib/auth/permissions";
+import { featureForRoute, isFeatureOn } from "@/lib/features";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
 
@@ -17,7 +18,13 @@ import { activeHref, NAV_ITEMS, NAV_SECTIONS } from "../nav-items";
 export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const user = useAuthStore((s) => s.user);
-  const items = NAV_ITEMS.filter((item) => !item.permission || hasPermissionInAnyScope(user, item.permission));
+  const items = NAV_ITEMS.filter((item) => {
+    const feature = featureForRoute(item.href);
+    return (
+      (!item.permission || hasPermissionInAnyScope(user, item.permission)) &&
+      (!feature || isFeatureOn(user?.company.features, feature))
+    );
+  });
   const active = activeHref(pathname, items);
 
   return (

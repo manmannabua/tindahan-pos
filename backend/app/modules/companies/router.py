@@ -13,6 +13,8 @@ from app.modules.companies import service
 from app.modules.companies.schemas import (
     CompanyRead,
     CompanyUpdate,
+    FeaturesRead,
+    FeaturesUpdate,
     SignupRequest,
     SignupResponse,
 )
@@ -50,5 +52,39 @@ async def update_current_company(
 ) -> CompanyRead:
     company = await service.update_company(
         db, principal.company_id, data, audit_actor(principal, request)
+    )
+    return CompanyRead.model_validate(company)
+
+
+@router.get("/current/features", response_model=FeaturesRead)
+async def get_features(principal: CurrentPrincipal, db: DbSession) -> FeaturesRead:
+    """Optional features with their state, descriptions, dependencies and onboarding presets."""
+    return service.features_view(await service.get_company(db, principal.company_id))
+
+
+@router.put(
+    "/current/features",
+    response_model=FeaturesRead,
+    dependencies=[Depends(require_permission(P.COMPANY_MANAGE))],
+)
+async def update_features(
+    data: FeaturesUpdate, principal: CurrentPrincipal, request: Request, db: DbSession
+) -> FeaturesRead:
+    company = await service.update_features(
+        db, principal.company_id, data, audit_actor(principal, request)
+    )
+    return service.features_view(company)
+
+
+@router.post(
+    "/current/onboarding/complete",
+    response_model=CompanyRead,
+    dependencies=[Depends(require_permission(P.COMPANY_MANAGE))],
+)
+async def complete_onboarding(
+    principal: CurrentPrincipal, request: Request, db: DbSession
+) -> CompanyRead:
+    company = await service.complete_onboarding(
+        db, principal.company_id, audit_actor(principal, request)
     )
     return CompanyRead.model_validate(company)
