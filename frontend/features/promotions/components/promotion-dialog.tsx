@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { SelectField, SimpleSelect, TextField } from "@/components/shared/form-fields";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CurrencyField } from "@/components/shared/currency-input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -117,12 +118,13 @@ export function PromotionDialog({ promotion, onClose }: { promotion?: Promotion;
                 <TextField label="Buy" inputMode="decimal" value={buy} onChange={(e) => setBuy(e.target.value)} />
                 <TextField label="Get free" inputMode="decimal" value={get} onChange={(e) => setGet(e.target.value)} />
               </>
+            ) : kind === "PERCENT_OFF" ? (
+              <TextField label="Percent" inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value)} />
             ) : (
-              <TextField
-                label={kind === "PERCENT_OFF" ? "Percent" : kind === "AMOUNT_OFF" ? "Amount off per unit" : "Special unit price"}
-                inputMode="decimal"
+              <CurrencyField
+                label={kind === "AMOUNT_OFF" ? "Amount off per unit" : "Special unit price"}
                 value={value}
-                onChange={(e) => setValue(e.target.value)}
+                onValueChange={setValue}
               />
             )}
             <TextField label="Minimum quantity" inputMode="decimal" value={minQty} onChange={(e) => setMinQty(e.target.value)} />

@@ -13,6 +13,7 @@ import { QueryError, TableSkeleton } from "@/components/shared/query-state";
 import { SearchInput } from "@/components/shared/search-input";
 import { ActiveBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
+import { CurrencyField } from "@/components/shared/currency-input";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -173,7 +174,7 @@ function CustomerDialog({ customer, onClose }: { customer?: Customer; onClose: (
             <TextField label="Phone" type="tel" value={v.phone} onChange={set("phone")} />
             <TextField label="Email" type="email" value={v.email} onChange={set("email")} />
             <TextField label="TIN" value={v.tin} onChange={set("tin")} />
-            <TextField label="Credit limit" inputMode="decimal" value={v.creditLimit} onChange={set("creditLimit")} />
+            <CurrencyField label="Credit limit" value={v.creditLimit} onValueChange={(creditLimit) => setV({ ...v, creditLimit })} />
           </div>
           <TextField label="Address" value={v.address} onChange={set("address")} />
           <SelectField

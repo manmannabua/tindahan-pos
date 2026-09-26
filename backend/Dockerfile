@@ -22,6 +22,8 @@ FROM base AS runtime
 RUN groupadd --system app && useradd --system --gid app --home /app app
 COPY --from=builder /app/.venv /app/.venv
 COPY --chown=app:app . .
+# Product photos; mount a volume here in production (see docker-compose.prod.yml).
+RUN mkdir -p /app/media && chown app:app /app/media
 ENV PATH="/app/.venv/bin:$PATH"
 USER app
 EXPOSE 8000

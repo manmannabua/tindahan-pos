@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { SimpleSelect, TextAreaField, TextField } from "@/components/shared/form-fields";
 import { Button } from "@/components/ui/button";
+import { CurrencyField } from "@/components/shared/currency-input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useCreateProduct, useReference } from "@/features/catalog/api";
@@ -182,7 +183,7 @@ export function ProductCreateForm() {
                 value={v.name}
                 onChange={(e) => updateVariant(v.key, { name: e.target.value })}
               />
-              <TextField label="Unit cost" inputMode="decimal" value={v.cost} onChange={(e) => updateVariant(v.key, { cost: e.target.value })} />
+              <CurrencyField label="Unit cost" decimals={4} value={v.cost} onValueChange={(cost) => updateVariant(v.key, { cost })} />
               <TextField
                 label="Reorder point"
                 inputMode="decimal"

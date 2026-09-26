@@ -52,6 +52,8 @@ class Settings(BaseSettings):
     device_challenge_ttl_seconds: int = 60
 
     allow_signup: bool = True
+    # Uploaded files (product photos). Served at {api_prefix}/media. Use a persistent volume.
+    media_root: str = "media"
     cors_origins: list[str] = ["http://localhost:3000"]
     rate_limit_enabled: bool = True
 

@@ -128,3 +128,30 @@
     @apply font-sans;
   }
 }
+@layer utilities {
+  /*
+   * Scroll area whose scrollbar is only visible while hovered (or while focus is inside, for
+   * keyboard users). The bar keeps its thin width and is merely transparent otherwise, so the
+   * content never shifts when it appears.
+   */
+  .scrollbar-on-hover {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+  .scrollbar-on-hover:hover,
+  .scrollbar-on-hover:focus-within {
+    scrollbar-color: var(--border) transparent;
+  }
+  /* Safari (no scrollbar-color support) */
+  .scrollbar-on-hover::-webkit-scrollbar {
+    width: 6px;
+  }
+  .scrollbar-on-hover::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 9999px;
+  }
+  .scrollbar-on-hover:hover::-webkit-scrollbar-thumb,
+  .scrollbar-on-hover:focus-within::-webkit-scrollbar-thumb {
+    background: var(--border);
+  }
+}

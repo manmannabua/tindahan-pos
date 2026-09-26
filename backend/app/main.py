@@ -7,6 +7,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import IntegrityError
 
 from app import models  # noqa: F401  (register all models before first query)
@@ -84,6 +85,12 @@ def create_app() -> FastAPI:
         )
 
     app.include_router(api_router, prefix=settings.api_prefix)
+    # Product photos. check_dir=False: the directory is created on the first upload.
+    app.mount(
+        f"{settings.api_prefix}/media",
+        StaticFiles(directory=settings.media_root, check_dir=False),
+        name="media",
+    )
     return app
 
 

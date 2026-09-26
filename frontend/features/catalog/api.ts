@@ -137,6 +137,20 @@ export function useUpdateProduct(id: string) {
   return useProductMutation((data: ProductUpdate) => api.patch<Product>(`/products/${id}`, data));
 }
 
+/** Upload (or replace) the product photo; `photo` should already be resized (lib/images/resize). */
+export function useSetProductImage(productId: string) {
+  return useProductMutation((photo: Blob) => {
+    const form = new FormData();
+    const ext = photo.type === "image/webp" ? "webp" : photo.type === "image/png" ? "png" : "jpg";
+    form.append("file", photo, `photo.${ext}`);
+    return api.put<Product>(`/products/${productId}/image`, form);
+  });
+}
+
+export function useRemoveProductImage(productId: string) {
+  return useProductMutation<void>(() => api.delete<Product>(`/products/${productId}/image`));
+}
+
 export function useAddProductUnit(productId: string) {
   return useProductMutation((data: { unit_id: string; factor: string }) =>
     api.post<Product>(`/products/${productId}/units`, data),

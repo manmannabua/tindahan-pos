@@ -22,6 +22,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { usePermissionInAnyScope } from "@/features/auth/hooks";
 import { useCategories, useProducts, useReference } from "@/features/catalog/api";
 import { flattenCategories } from "@/features/catalog/category-tree";
+import { ProductThumb } from "@/features/products/components/product-photo";
 import { downloadAuthed } from "@/features/shell/download";
 import { ADMIN_PERM } from "@/features/shell/permissions";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
@@ -117,6 +118,9 @@ export default function ProductsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-14">
+                    <span className="sr-only">Photo</span>
+                  </TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead className="hidden md:table-cell">SKU</TableHead>
                   <TableHead className="hidden lg:table-cell">Barcode</TableHead>
@@ -127,7 +131,10 @@ export default function ProductsPage() {
               </TableHeader>
               <TableBody>
                 {data.items.map((p) => (
-                  <TableRow key={p.id} className="h-12 cursor-pointer" onClick={() => router.push(`/products/${p.id}`)}>
+                  <TableRow key={p.id} className="h-14 cursor-pointer" onClick={() => router.push(`/products/${p.id}`)}>
+                    <TableCell className="py-1.5">
+                      <ProductThumb src={p.image_url} alt="" />
+                    </TableCell>
                     <TableCell className="font-medium">
                       {p.name}
                       {!p.track_inventory && <span className="ml-2 text-xs text-muted-foreground">(not stocked)</span>}

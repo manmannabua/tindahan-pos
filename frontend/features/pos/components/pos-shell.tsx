@@ -3,6 +3,7 @@
 import { ReceiptTextIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { ConnectivityBadge } from "@/features/sync/components/connectivity-badge";
 import { useConnectivityMonitor } from "@/features/sync/hooks/use-connectivity-monitor";
 
@@ -20,6 +21,7 @@ export function PosShell({ children }: { children: ReactNode }) {
         </span>
         <span className="text-lg font-semibold">POS</span>
         <ConnectivityBadge className="ml-auto" />
+        <ThemeToggle />
       </header>
       <main className="flex flex-1 flex-col">{children}</main>
     </div>

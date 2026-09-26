@@ -155,7 +155,7 @@ function DirectReceiptDialog({ open, onOpenChange, onDone }: { open: boolean; on
           <ItemLinesEditor
             lines={lines}
             onChange={setLines}
-            extra={[{ key: "cost", label: "Unit cost", initial: (item) => (item.averageCost && Number(item.averageCost) > 0 ? item.averageCost : "") }]}
+            extra={[{ key: "cost", label: "Unit cost", currencyDecimals: 4, initial: (item) => (item.averageCost && Number(item.averageCost) > 0 ? item.averageCost : "") }]}
           />
           {problem && <p className="text-sm text-destructive" role="alert">{problem}</p>}
         </div>

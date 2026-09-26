@@ -31,5 +31,12 @@ if [[ -n "${OFFSITE_TARGET:-}" ]]; then
   echo "[$(date -u)] copied off-site to ${OFFSITE_TARGET}"
 fi
 
+# Product photos live outside the database: archive the media volume too.
+MEDIA_FILE="${BACKUP_DIR}/media_${STAMP}.tar.gz"
+${COMPOSE} exec -T api tar -czf - -C /app media > "${MEDIA_FILE}"
+echo "[$(date -u)] media archived $(du -h "${MEDIA_FILE}" | cut -f1)"
+[[ -n "${OFFSITE_TARGET:-}" ]] && rclone copy "${MEDIA_FILE}" "${OFFSITE_TARGET}/" --immutable
+
+find "${BACKUP_DIR}" -name 'media_*.tar.gz' -mtime "+${RETENTION_DAYS}" -delete
 find "${BACKUP_DIR}" -name 'pos_*.dump' -mtime "+${RETENTION_DAYS}" -delete
 echo "[$(date -u)] done"

@@ -64,13 +64,15 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
 
   async function send(path: string, options: RequestOptions, token: string | null): Promise<Response> {
     const headers: Record<string, string> = { Accept: "application/json", ...CLIENT_HEADER };
-    if (options.body !== undefined) headers["Content-Type"] = "application/json";
+    // FormData (file uploads) is sent as-is: the browser sets the multipart boundary header.
+    const isForm = typeof FormData !== "undefined" && options.body instanceof FormData;
+    if (options.body !== undefined && !isForm) headers["Content-Type"] = "application/json";
     if (token) headers.Authorization = `Bearer ${token}`;
     try {
       return await fetchFn(buildUrl(baseUrl, path, options.query), {
         method: options.method ?? "GET",
         headers,
-        body: options.body === undefined ? undefined : JSON.stringify(options.body),
+        body: options.body === undefined ? undefined : isForm ? (options.body as FormData) : JSON.stringify(options.body),
         credentials: "same-origin",
         signal: options.signal,
       });

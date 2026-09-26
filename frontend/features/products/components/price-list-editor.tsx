@@ -4,6 +4,7 @@ import { PlusIcon, Trash2Icon } from "lucide-react";
 
 import { SimpleSelect } from "@/components/shared/form-fields";
 import { Button } from "@/components/ui/button";
+import { CurrencyInput } from "@/components/shared/currency-input";
 import { Input } from "@/components/ui/input";
 import { useBranches } from "@/features/branches/api";
 import { useReference } from "@/features/catalog/api";
@@ -66,14 +67,12 @@ export function PriceListEditor({ rows, onChange, units, errors = {}, disabled }
               onChange={(e) => update(row.key, { minQuantity: e.target.value })}
               disabled={disabled}
             />
-            <Input
+            <CurrencyInput
               aria-label="Price"
-              inputMode="decimal"
               placeholder="0.00"
-              className="tabular-nums"
               value={row.price}
               aria-invalid={errors[row.key] ? true : undefined}
-              onChange={(e) => update(row.key, { price: e.target.value })}
+              onValueChange={(price) => update(row.key, { price })}
               disabled={disabled}
             />
             <Button

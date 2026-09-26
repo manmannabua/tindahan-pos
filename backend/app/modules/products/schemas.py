@@ -153,6 +153,7 @@ class ProductSummary(ResponseSchema):
     brand_id: uuid.UUID | None
     track_inventory: bool
     sc_pwd_eligible: bool
+    image_url: str | None
     is_active: bool
     variant_count: int
     sku: str | None

@@ -1,7 +1,7 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi import APIRouter, Depends, Query, Request, UploadFile, status
 
 from app.modules.auth.dependencies import (
     CurrentPrincipal,
@@ -12,7 +12,7 @@ from app.modules.auth.dependencies import (
 from app.modules.auth.principal import Principal
 from app.modules.pricing import service as pricing
 from app.modules.pricing.schemas import PriceRead, SetPricesRequest
-from app.modules.products import service
+from app.modules.products import images, service
 from app.modules.products.models import Product, ProductVariant
 from app.modules.products.schemas import (
     BarcodeIn,
@@ -121,6 +121,7 @@ async def list_products(
             brand_id=p.brand_id,
             track_inventory=p.track_inventory,
             sc_pwd_eligible=p.sc_pwd_eligible,
+            image_url=p.image_url,
             is_active=p.is_active,
             variant_count=count,
             sku=sku,
@@ -161,6 +162,32 @@ async def update_product(
         db, principal, product_id, data, audit_actor(principal, request)
     )
     return to_product_read(product, principal)
+
+
+@router.put("/products/{product_id}/image", response_model=ProductRead)
+async def upload_product_image(
+    product_id: uuid.UUID,
+    file: UploadFile,
+    principal: CurrentPrincipal,
+    request: Request,
+    db: DbSession,
+) -> ProductRead:
+    """Set or replace the product photo (JPEG, PNG or WebP, max 2 MB; the app resizes first)."""
+    data = await file.read(images.MAX_IMAGE_BYTES + 1)
+    await images.set_product_image(db, principal, product_id, data, audit_actor(principal, request))
+    return to_product_read(
+        await service.get_product(db, principal.company_id, product_id, fresh=True), principal
+    )
+
+
+@router.delete("/products/{product_id}/image", response_model=ProductRead)
+async def delete_product_image(
+    product_id: uuid.UUID, principal: CurrentPrincipal, request: Request, db: DbSession
+) -> ProductRead:
+    await images.remove_product_image(db, principal, product_id, audit_actor(principal, request))
+    return to_product_read(
+        await service.get_product(db, principal.company_id, product_id, fresh=True), principal
+    )
 
 
 @router.post(

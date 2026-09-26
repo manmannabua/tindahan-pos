@@ -9,6 +9,8 @@ release savepoints inside the outer transaction.
 """
 
 import os
+import tempfile
+from pathlib import Path
 
 # Settings are read once and cached, so the environment must be set before importing the app.
 os.environ.setdefault("TEST_DATABASE_URL", "postgresql+asyncpg://pos:pos@localhost:5432/pos_test")
@@ -17,6 +19,8 @@ os.environ["DATABASE_URL"] = os.environ["TEST_DATABASE_URL"]
 os.environ["REDIS_URL"] = "fakeredis://"
 os.environ["COOKIE_SECURE"] = "false"
 os.environ["BACKGROUND_JOBS_INLINE"] = "true"  # no Celery worker in tests
+os.environ["MEDIA_ROOT"] = str(Path(tempfile.gettempdir()) / "pos-test-media")
+os.environ["RATE_LIMIT_ENABLED"] = "true"  # a developer .env may disable it; tests cover it
 os.environ["PIN_OFFLINE_ITERATIONS"] = "1000"  # fast tests; production default is 210k
 
 from collections.abc import AsyncIterator

@@ -13,6 +13,7 @@ import { Pagination } from "@/components/shared/pagination";
 import { QueryError, TableSkeleton } from "@/components/shared/query-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CurrencyField } from "@/components/shared/currency-input";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useBranches, useBranchLabels } from "@/features/branches/api";
@@ -206,7 +207,7 @@ function ExpenseDialog({ onClose }: { onClose: () => void }) {
             />
             {categoryId === NEW_CATEGORY && <TextField label="New category name" value={newCategory} onChange={(e) => setNewCategory(e.target.value)} />}
             <TextField label="Date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-            <TextField label="Amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
+            <CurrencyField label="Amount" value={amount} onValueChange={setAmount} />
             <SelectField label="Paid from" value={paidFrom} onChange={(v) => setPaidFrom(v as ExpenseCreate["paid_from"])} options={PAID_FROM} />
             <TextField label="Payee" value={payee} onChange={(e) => setPayee(e.target.value)} />
             <TextField label="Reference no." value={reference} onChange={(e) => setReference(e.target.value)} />

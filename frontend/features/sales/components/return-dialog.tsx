@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { SimpleSelect, TextField } from "@/components/shared/form-fields";
 import { money, qty } from "@/components/shared/formatters";
 import { Button } from "@/components/ui/button";
+import { CurrencyInput } from "@/components/shared/currency-input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -135,7 +136,7 @@ export function ReturnDialog({ sale, onClose, onDone }: { sale: SaleDetail; onCl
                   onChange={(v) => setRow(r.key, { methodId: v })}
                   options={(methods ?? []).filter((m) => m.is_active).map((m) => ({ value: m.id, label: m.name }))}
                 />
-                <Input aria-label="Refund amount" inputMode="decimal" placeholder={estimate} value={r.amount} onChange={(e) => setRow(r.key, { amount: e.target.value })} />
+                <CurrencyInput aria-label="Refund amount" placeholder={estimate} value={r.amount} onValueChange={(amount) => setRow(r.key, { amount })} />
                 <Input aria-label="Reference" placeholder="Reference (e-wallet, card…)" value={r.reference} onChange={(e) => setRow(r.key, { reference: e.target.value })} />
                 <Button variant="ghost" size="icon" aria-label="Remove refund" disabled={refunds.length === 1} onClick={() => setRefunds((rs) => rs.filter((x) => x.key !== r.key))}>
                   <Trash2Icon />

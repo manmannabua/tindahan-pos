@@ -188,8 +188,20 @@ Last updated: 2026-09-26
   back to browser printing. Untested on real hardware.
 - Dev DB `pos` was reset (DEMO only).
 
-**Current checks (all green):** backend `pytest` 138 · ruff · mypy strict. Frontend lint ·
-typecheck · 227 Vitest · build · **8/8 Playwright** (admin, catalog→PO→report export, offline
+### Admin UI polish ✅
+- **Product photos**: `PUT/DELETE /products/{id}/image` (JPEG/PNG/WebP by magic bytes, ≤ 2 MB,
+  `products.write`), stored on disk under `MEDIA_ROOT` (prod: `media` volume, included in
+  `backup.sh`), served at `/api/v1/media/...` with unique filenames per upload. The browser resizes
+  to ≤ 800 px WebP before uploading. Thumbnails in the products table; editor on the product page.
+  Photos are not auth-protected (unguessable URLs) and are not cached offline by the service worker.
+- **Currency input** (`components/shared/currency-input.tsx`): ₱ prefix, live thousands
+  separators, rejects letters, caret-stable, pads decimals on blur; used for all money fields
+  (costs keep 4 decimals).
+- **Light/dark toggle** (next-themes) in admin and POS headers; sidebar logo and "Open POS
+  terminal" stay fixed, the nav scrolls with a scrollbar shown only on hover.
+
+**Current checks (all green):** backend `pytest` 142 · ruff · mypy strict. Frontend lint ·
+typecheck · 243 Vitest · build · **8/8 Playwright** (admin, catalog→PO→report export, offline
 20-sale critical test, two-terminal oversell, Phase 7 offline promo/customer/void/return, offline
 SC sale + cross-terminal return, smoke).
 

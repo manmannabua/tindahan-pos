@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { TextField } from "@/components/shared/form-fields";
 import { Button } from "@/components/ui/button";
+import { CurrencyField } from "@/components/shared/currency-input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAddVariant } from "@/features/catalog/api";
 import { errorMessage } from "@/lib/api/errors";
@@ -74,8 +75,8 @@ export function AddVariantDialog({
           <div className="grid gap-4 sm:grid-cols-2">
             <TextField label="SKU (optional)" value={sku} onChange={(e) => setSku(e.target.value)} />
             <TextField label="Name, e.g. Red / L" value={name} onChange={(e) => setName(e.target.value)} />
-            <TextField label="Unit cost" inputMode="decimal" value={cost} onChange={(e) => setCost(e.target.value)} />
-            <TextField label="Price (base unit)" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} />
+            <CurrencyField label="Unit cost" decimals={4} value={cost} onValueChange={setCost} />
+            <CurrencyField label="Price (base unit)" value={price} onValueChange={setPrice} />
           </div>
           <TextField label="Barcodes (space separated)" value={barcodes} onChange={(e) => setBarcodes(e.target.value)} />
           {error && <p className="text-sm text-destructive" role="alert">{error}</p>}

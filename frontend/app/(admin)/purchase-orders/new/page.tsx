@@ -91,7 +91,7 @@ export default function NewPurchaseOrderPage() {
             <ItemLinesEditor
               lines={lines}
               onChange={setLines}
-              extra={[{ key: "cost", label: "Unit cost", placeholder: "Cost / unit" }]}
+              extra={[{ key: "cost", label: "Unit cost", placeholder: "Cost / unit", currencyDecimals: 4 }]}
             />
             <div className="flex flex-wrap items-center justify-end gap-4">
               {problem && <p className="text-sm text-destructive" role="alert">{problem}</p>}

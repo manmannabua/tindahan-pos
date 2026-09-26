@@ -4,6 +4,7 @@ import { Trash2Icon } from "lucide-react";
 
 import { SimpleSelect } from "@/components/shared/form-fields";
 import { Button } from "@/components/ui/button";
+import { CurrencyInput } from "@/components/shared/currency-input";
 import { Input } from "@/components/ui/input";
 import { newRowKey } from "@/features/products/price-rows";
 
@@ -25,6 +26,8 @@ export interface ExtraColumn {
   options?: { value: string; label: string }[];
   placeholder?: string;
   initial?: (item: PickedItem) => string;
+  /** Money column (peso sign, thousands separators); value = max decimals, e.g. 4 for unit costs. */
+  currencyDecimals?: number;
 }
 
 interface Props {
@@ -99,6 +102,17 @@ export function ItemLinesEditor({ lines, onChange, baseUnitOnly, extra = [], qua
                       onChange={(v) => update(line.key, { extra: { ...line.extra, [col.key]: v } })}
                       options={col.options}
                     />
+                  ) : col.currencyDecimals !== undefined ? (
+                    <div key={col.key} className={col.width ?? "w-32"}>
+                      <CurrencyInput
+                        aria-label={col.label}
+                        title={col.label}
+                        placeholder={col.placeholder ?? col.label}
+                        decimals={col.currencyDecimals}
+                        value={line.extra[col.key] ?? ""}
+                        onValueChange={(v) => update(line.key, { extra: { ...line.extra, [col.key]: v } })}
+                      />
+                    </div>
                   ) : (
                     <Input
                       key={col.key}

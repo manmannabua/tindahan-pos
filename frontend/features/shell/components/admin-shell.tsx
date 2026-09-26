@@ -4,6 +4,7 @@ import { Loader2Icon, MenuIcon } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useState } from "react";
 
+import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useRestoreSession } from "@/features/auth/use-restore-session";
@@ -49,7 +50,8 @@ export function AdminShell({ children }: { children: ReactNode }) {
             </SheetContent>
           </Sheet>
           <span className="truncate text-sm font-medium text-muted-foreground lg:hidden">{companyName}</span>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-1">
+            <ThemeToggle />
             <UserMenu />
           </div>
         </header>

@@ -11,6 +11,7 @@ import { errorMessage } from "@/lib/api/errors";
 import type { Product } from "@/types/api-admin";
 
 import { type GeneralValues, NONE, optionalId, ProductGeneralFields } from "./product-general-fields";
+import { ProductPhotoEditor } from "./product-photo";
 
 function toValues(p: Product): GeneralValues {
   return {
@@ -63,6 +64,12 @@ export function ProductGeneralCard({ product, canEdit }: { product: Product; can
         </CardTitle>
       </CardHeader>
       <CardContent className="grid gap-4">
+        <ProductPhotoEditor
+          productId={product.id}
+          name={product.name}
+          imageUrl={product.image_url ?? null}
+          canEdit={canEdit}
+        />
         <fieldset disabled={!canEdit} className="contents">
           <ProductGeneralFields value={values} onChange={setValues} mode="edit" />
         </fieldset>
