@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useLiveQuery } from "@/hooks/use-live-query";
 import { getDb, type LocalDiscount, type LocalSale } from "@/lib/db/schema";
-import { compare, formatMoney } from "@/lib/money";
+import { compare, formatMoney, subtract } from "@/lib/money";
 import { calculateCart, itemCount } from "@/lib/pos/cart";
 import { completeSale, SaleValidationError, type TenderInput } from "@/lib/pos/complete-sale";
 import { loadReceipt } from "@/lib/pos/receipts";
@@ -145,14 +145,18 @@ export function SellScreen() {
         <div className="space-y-2 rounded-xl border bg-background p-4">
           <Row label="Items" value={cart.lines.length ? itemCount(cart) : "0"} />
           <Row label="Subtotal" value={formatMoney(calc?.totals.grossTotal ?? "0", currency)} />
-          {calc && compare(calc.totals.discountTotal, "0") > 0 && (
-            <Row label="Discount" value={`−${formatMoney(calc.totals.discountTotal, currency)}`} />
+          {/* Regular discounts only; the SC/PWD discount has its own row below. */}
+          {calc && compare(subtract(calc.totals.discountTotal, calc.totals.statutoryDiscountTotal), "0") > 0 && (
+            <Row
+              label="Discount"
+              value={`−${formatMoney(subtract(calc.totals.discountTotal, calc.totals.statutoryDiscountTotal), currency)}`}
+            />
           )}
           {calc && compare(calc.totals.vatExemptionTotal, "0") > 0 && (
             <Row label="Less: VAT exemption" value={`−${formatMoney(calc.totals.vatExemptionTotal, currency)}`} />
           )}
           {calc && compare(calc.totals.statutoryDiscountTotal, "0") > 0 && (
-            <Row label="Incl. SC/PWD 20% discount" value={`−${formatMoney(calc.totals.statutoryDiscountTotal, currency)}`} />
+            <Row label="Less: SC/PWD 20% discount" value={`−${formatMoney(calc.totals.statutoryDiscountTotal, currency)}`} />
           )}
           <Row label={context.company.pricesIncludeTax ? "VAT (included)" : "VAT"} value={formatMoney(calc?.totals.taxTotal ?? "0", currency)} />
           <div className="flex items-end justify-between border-t pt-2">

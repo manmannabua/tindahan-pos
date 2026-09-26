@@ -52,7 +52,7 @@ def payload_hash(payload: dict[str, Any]) -> str:
 async def push(db: AsyncSession, principal: DevicePrincipal, request: PushRequest) -> PushResponse:
     permission_cache: dict[Any, Any] = {}
     results = [await _process(db, principal, op, permission_cache) for op in request.operations]
-    await _update_device_status(db, principal, request)
+    await _update_device_status(db, principal, request, results)
     await mark_device_online(principal.device_id)
     applied = [
         op
@@ -262,7 +262,10 @@ async def _record_failure(
 
 
 async def _update_device_status(
-    db: AsyncSession, principal: DevicePrincipal, request: PushRequest
+    db: AsyncSession,
+    principal: DevicePrincipal,
+    request: PushRequest,
+    results: list[OperationResult],
 ) -> None:
     device = await db.get(Device, principal.device_id)
     if device is None:
@@ -271,7 +274,10 @@ async def _update_device_status(
     device.last_seen_at = now
     device.last_sync_at = now
     if request.pending_count is not None:
-        device.pending_operations = request.pending_count
+        # The terminal counts the batch it is sending as pending. Operations settled by this
+        # request leave its outbox, so they no longer count; DEFERRED/RETRY stay pending.
+        settled = sum(1 for r in results if r.status not in (OpStatus.DEFERRED, OpStatus.RETRY))
+        device.pending_operations = max(0, request.pending_count - settled)
     if request.app_version:
         device.app_version = request.app_version
     if request.device_time and abs(request.device_time - now) > CLOCK_SKEW_TOLERANCE:

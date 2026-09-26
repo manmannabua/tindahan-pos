@@ -15,7 +15,7 @@ export function SyncMonitor() {
   const ops = useLiveQuery(
     async () => (await getDb().outbox.where("status").anyOf("PENDING", "SYNCING", "FAILED", "CONFLICT").toArray()).sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0)),
     [],
-    [] as OutboxEntry[],
+    null as OutboxEntry[] | null, // null until IndexedDB answers: never claim "synced" before we know
   );
   const syncedCount = useLiveQuery(() => getDb().outbox.where("status").equals("SYNCED").count(), [], 0);
   const lastSyncAt = useTerminalStore((s) => s.lastSyncAt);
@@ -40,7 +40,7 @@ export function SyncMonitor() {
       </div>
       {syncError && <p className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{syncError}</p>}
       <ul className="divide-y rounded-xl border bg-background" aria-label="Unsynced operations">
-        {ops.map((op) => (
+        {(ops ?? []).map((op) => (
           <li key={op.operationId} className="space-y-1 px-4 py-3 text-sm">
             <div className="flex items-center gap-2">
               <span className="font-medium">{op.operation}</span>
@@ -49,7 +49,7 @@ export function SyncMonitor() {
                 {new Date(op.createdAt).toLocaleString()} · attempts {op.attemptCount}
               </span>
             </div>
-            {op.error && (
+            {op.error && op.status !== "SYNCING" && (
               <div className="text-xs text-destructive" data-testid="op-error">
                 {describeSyncError(op.error)} <span className="text-muted-foreground">({op.error.code})</span>
               </div>
@@ -59,7 +59,8 @@ export function SyncMonitor() {
             )}
           </li>
         ))}
-        {ops.length === 0 && <li className="px-4 py-8 text-center text-sm text-muted-foreground">Everything is synced.</li>}
+        {ops === null && <li className="px-4 py-8 text-center text-sm text-muted-foreground">Checking…</li>}
+        {ops !== null && ops.length === 0 && <li className="px-4 py-8 text-center text-sm text-muted-foreground">Everything is synced.</li>}
       </ul>
     </div>
   );

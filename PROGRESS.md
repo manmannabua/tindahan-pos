@@ -249,6 +249,12 @@ SC sale + cross-terminal return, smoke).
 - Playwright must run against `next dev`: in a production build the service worker fetches
   API calls itself, bypassing Playwright's `page.route` offline blocking.
 - Repo: git@github.com:manmannabua/tindahan-pos.git (branch `main`).
+- Windows: killing a `uvicorn --reload` process can orphan its worker child, which keeps
+  serving port 8000 with old code/settings (check `netstat -ano | findstr :8000`). The dev
+  machine's `backend/.env` sets `RATE_LIMIT_ENABLED=false` so e2e runs can sign up companies.
+- Manual walkthroughs against running dev servers: `frontend/scripts/manual-walkthrough.mjs`
+  (admin) and `manual-walkthrough-pos.mjs` (terminal setup → online/offline/SC sales → reload →
+  sync → server check; `TERMINAL=T02` for a second terminal). Screenshots per step.
 
 ## Pending migrations
 - None pending. Latest: `e1c3cb7b756c` SC/PWD discount + BIR fields (before it: `ff379da3c120` import jobs + trigram search). Revisions (in order): `ef8f6c10c69c` foundation, `1e3cfbdadecb` catalog and

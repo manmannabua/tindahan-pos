@@ -303,3 +303,20 @@ async def test_admin_sales_endpoints(client: AsyncClient) -> None:
     assert Decimal(detail["change_total"]) == Decimal("25.00")
     assert [i["quantity"] for i in detail["items"]] == ["3.000"]
     assert detail["payments"][0]["method_kind"] == "CASH"
+
+
+async def test_pending_count_excludes_settled_operations(client: AsyncClient) -> None:
+    """The terminal reports its pending count including the batch being sent."""
+    tenant = await signup(client)
+    item = await stocked_item(client, tenant)
+    terminal = await make_terminal(client, tenant)
+    open_op = terminal.open_session()
+    sale = terminal.sale([(item, "1")])
+    orphan = terminal.sale([(item, "1")])
+    orphan["payload"]["cash_session_id"] = str(uuid7())  # session never pushed → DEFERRED
+
+    await terminal.push([open_op, sale, orphan], pending_count=3)
+    device = (
+        await client.get(f"/api/v1/devices/{terminal.device['id']}", headers=tenant.headers)
+    ).json()
+    assert device["pending_operations"] == 1  # only the deferred sale is still pending
