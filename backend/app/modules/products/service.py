@@ -30,6 +30,7 @@ from app.modules.products.schemas import (
     VariantIn,
     VariantUpdate,
 )
+from app.modules.storefront import cache as storefront_cache
 from app.modules.units.models import Unit
 from app.modules.users.permissions import P
 from app.shared import barcodes as bc
@@ -63,19 +64,19 @@ async def get_product(
     return product
 
 
-async def list_products(
-    db: AsyncSession,
+def filtered_products(
     company_id: uuid.UUID,
     *,
     q: str | None,
     category_id: uuid.UUID | None,
     brand_id: uuid.UUID | None,
     include_inactive: bool,
-    limit: int,
-    offset: int,
-) -> tuple[list[tuple[Product, int, str | None, str | None, Decimal | None]], int]:
-    """Summaries: product, variant count, default SKU, primary barcode, default retail price."""
+    online: bool | None = None,
+) -> Select[Product]:
+    """The product list filter (also used by bulk actions that apply "to all matching")."""
     stmt = select(Product).where(Product.company_id == company_id)
+    if online is not None:
+        stmt = stmt.where(Product.show_online.is_(online))
     if not include_inactive:
         stmt = stmt.where(Product.is_active.is_(True))
     if category_id:
@@ -98,6 +99,30 @@ async def list_products(
                 ),
             )
         )
+    return stmt
+
+
+async def list_products(
+    db: AsyncSession,
+    company_id: uuid.UUID,
+    *,
+    q: str | None,
+    category_id: uuid.UUID | None,
+    brand_id: uuid.UUID | None,
+    include_inactive: bool,
+    online: bool | None = None,
+    limit: int,
+    offset: int,
+) -> tuple[list[tuple[Product, int, str | None, str | None, Decimal | None]], int]:
+    """Summaries: product, variant count, default SKU, primary barcode, default retail price."""
+    stmt = filtered_products(
+        company_id,
+        q=q,
+        category_id=category_id,
+        brand_id=brand_id,
+        include_inactive=include_inactive,
+        online=online,
+    )
     total = await db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
     products = list(await db.scalars(stmt.order_by(Product.name).limit(limit).offset(offset)))
     if not products:
@@ -194,6 +219,7 @@ async def create_product(
         tax_rate_id=tax_rate_id,
         track_inventory=data.track_inventory,
         sc_pwd_eligible=data.sc_pwd_eligible,
+        show_online=data.show_online,
         image_url=data.image_url,
     )
     db.add(product)
@@ -256,6 +282,8 @@ async def update_product(
         db, actor, "product.updated", entity_type="product", entity_id=product.id, changes=changes
     )
     await db.commit()
+    if "show_online" in changes or "is_active" in changes:
+        await storefront_cache.invalidate(principal.company_id)
     return await get_product(db, principal.company_id, product_id, fresh=True)
 
 

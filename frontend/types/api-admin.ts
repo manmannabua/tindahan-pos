@@ -82,3 +82,9 @@ export interface Paged<T> {
   limit: number;
   offset: number;
 }
+
+// Online catalog (storefront)
+export type Storefront = S["StorefrontRead"];
+export type StorefrontUpdate = S["StorefrontUpdate"];
+export type StockDisplay = S["StockDisplay"];
+export type ProductsOnlineUpdate = S["ProductsOnlineUpdate"];

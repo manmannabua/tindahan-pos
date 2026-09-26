@@ -16,14 +16,16 @@ import { SearchInput } from "@/components/shared/search-input";
 import { ActiveBadge } from "@/components/shared/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { usePermissionInAnyScope } from "@/features/auth/hooks";
 import { useCategories, useProducts, useReference } from "@/features/catalog/api";
 import { flattenCategories } from "@/features/catalog/category-tree";
-import { ProductThumb } from "@/features/products/components/product-photo";
+import { ProductThumb } from "@/components/shared/product-thumb";
 import { downloadAuthed } from "@/features/shell/download";
+import { FilterOnlineMenu, SelectedOnlineActions } from "@/features/storefront/components/online-bulk-actions";
 import { ADMIN_PERM } from "@/features/shell/permissions";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { errorMessage } from "@/lib/api/errors";
@@ -38,22 +40,47 @@ export default function ProductsPage() {
   const [categoryId, setCategoryId] = useState(ALL);
   const [brandId, setBrandId] = useState(ALL);
   const [includeInactive, setIncludeInactive] = useState(false);
+  const [online, setOnline] = useState(ALL);
   const [offset, setOffset] = useState(0);
+  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const q = useDebouncedValue(search.trim());
   const { data: categories } = useCategories();
   const { data: brands } = useReference("brands");
-  const { data, isPending, error, refetch, isPlaceholderData } = useProducts({
+  const filter = {
     q: q || undefined,
     category_id: categoryId === ALL ? undefined : categoryId,
     brand_id: brandId === ALL ? undefined : brandId,
     include_inactive: includeInactive,
+    online: online === ALL ? undefined : online === "yes",
+  };
+  const { data, isPending, error, refetch, isPlaceholderData } = useProducts({
+    ...filter,
     limit: PAGE_SIZE,
     offset,
   });
   const resetPage = <T,>(set: (v: T) => void) => (v: T) => {
     set(v);
     setOffset(0);
+    setSelected(new Set());
   };
+  const pageIds = data?.items.map((p) => p.id) ?? [];
+  const allOnPageSelected = pageIds.length > 0 && pageIds.every((id) => selected.has(id));
+  const toggle = (id: string, on: boolean) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  const togglePage = (on: boolean) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const id of pageIds) {
+        if (on) next.add(id);
+        else next.delete(id);
+      }
+      return next;
+    });
 
   return (
     <>
@@ -73,6 +100,7 @@ export default function ProductsPage() {
             </Link>
             {canWrite && (
               <>
+                <FilterOnlineMenu filter={filter} total={data?.total ?? 0} />
                 <Link href="/products/import" className={buttonVariants({ variant: "outline" })}>
                   <UploadIcon /> Import
                 </Link>
@@ -100,6 +128,17 @@ export default function ProductsPage() {
           onChange={resetPage(setBrandId)}
           options={[{ value: ALL, label: "All brands" }, ...(brands ?? []).map((b) => ({ value: b.id, label: b.name }))]}
         />
+        <SimpleSelect
+          aria-label="Online"
+          className="w-full lg:w-40"
+          value={online}
+          onChange={resetPage(setOnline)}
+          options={[
+            { value: ALL, label: "Online: any" },
+            { value: "yes", label: "Shown online" },
+            { value: "no", label: "Not shown online" },
+          ]}
+        />
         <div className="flex items-center gap-2">
           <Switch id="inactive-products" checked={includeInactive} onCheckedChange={resetPage(setIncludeInactive)} />
           <Label htmlFor="inactive-products">Show inactive</Label>
@@ -114,10 +153,16 @@ export default function ProductsPage() {
         <EmptyState icon={PackageIcon} title="No products found" description={q ? "Try a different search." : "Create or import your first product."} />
       ) : (
         <div className={isPlaceholderData ? "opacity-60 transition-opacity" : undefined}>
+          {selected.size > 0 && <SelectedOnlineActions ids={[...selected]} onDone={() => setSelected(new Set())} />}
           <div className="rounded-xl border">
             <Table>
               <TableHeader>
                 <TableRow>
+                  {canWrite && (
+                    <TableHead className="w-10">
+                      <Checkbox aria-label="Select all on this page" checked={allOnPageSelected} onCheckedChange={togglePage} />
+                    </TableHead>
+                  )}
                   <TableHead className="w-14">
                     <span className="sr-only">Photo</span>
                   </TableHead>
@@ -132,6 +177,11 @@ export default function ProductsPage() {
               <TableBody>
                 {data.items.map((p) => (
                   <TableRow key={p.id} className="h-14 cursor-pointer" onClick={() => router.push(`/products/${p.id}`)}>
+                    {canWrite && (
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <Checkbox aria-label={`Select ${p.name}`} checked={selected.has(p.id)} onCheckedChange={(on) => toggle(p.id, on)} />
+                      </TableCell>
+                    )}
                     <TableCell className="py-1.5">
                       <ProductThumb src={p.image_url} alt="" />
                     </TableCell>
@@ -147,6 +197,7 @@ export default function ProductsPage() {
                       <div className="flex flex-wrap gap-1">
                         <ActiveBadge active={p.is_active} />
                         {p.sc_pwd_eligible && <Badge variant="secondary">SC/PWD</Badge>}
+                        {p.show_online && <Badge variant="outline">Online</Badge>}
                       </div>
                     </TableCell>
                   </TableRow>

@@ -97,6 +97,8 @@ export interface ProductListParams {
   category_id?: string;
   brand_id?: string;
   include_inactive?: boolean;
+  /** true = only products shown online, false = only hidden ones. */
+  online?: boolean;
   limit: number;
   offset: number;
 }

@@ -75,6 +75,7 @@ def to_product_read(product: Product, principal: Principal) -> ProductRead:
         track_inventory=product.track_inventory,
         sc_pwd_eligible=product.sc_pwd_eligible,
         image_url=product.image_url,
+        show_online=product.show_online,
         is_active=product.is_active,
         units=[
             ProductUnitRead(
@@ -100,6 +101,9 @@ async def list_products(
     category_id: uuid.UUID | None = None,
     brand_id: uuid.UUID | None = None,
     include_inactive: bool = False,
+    online: Annotated[
+        bool | None, Query(description="Only products shown / not shown online")
+    ] = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> Page[ProductSummary]:
@@ -110,6 +114,7 @@ async def list_products(
         category_id=category_id,
         brand_id=brand_id,
         include_inactive=include_inactive,
+        online=online,
         limit=limit,
         offset=offset,
     )
@@ -122,6 +127,7 @@ async def list_products(
             track_inventory=p.track_inventory,
             sc_pwd_eligible=p.sc_pwd_eligible,
             image_url=p.image_url,
+            show_online=p.show_online,
             is_active=p.is_active,
             variant_count=count,
             sku=sku,

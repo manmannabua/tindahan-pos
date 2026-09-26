@@ -3,12 +3,13 @@
 Import columns (header row required; only `name`, `unit` and `price` are mandatory):
 
     name, sku, barcode, category, brand, unit, price, cost, tax, track_inventory,
-    reorder_point, opening_stock
+    reorder_point, show_online, opening_stock
 
 Rows are upserted by SKU: a known SKU updates the product name, base retail price and reorder
-point, and adds the barcode if new. Unknown categories/brands are created. `opening_stock` is
-posted as INITIAL_STOCK for new products only. Each row succeeds or fails on its own; failures
-are reported with their row number.
+point, and adds the barcode if new. `show_online` (yes/no) is applied when given; blank leaves it
+unchanged, and new products stay hidden. Unknown categories/brands are created. `opening_stock`
+is posted as INITIAL_STOCK for new products only. Each row succeeds or fails on its own;
+failures are reported with their row number.
 """
 
 import csv
@@ -57,6 +58,7 @@ COLUMNS = [
     "tax",
     "track_inventory",
     "reorder_point",
+    "show_online",
     "opening_stock",
 ]
 
@@ -73,6 +75,7 @@ class ImportRow(BaseModel):
     tax: str | None = None
     track_inventory: bool = True
     reorder_point: Decimal | None = Field(default=None, ge=0, max_digits=14, decimal_places=3)
+    show_online: bool | None = None  # blank = unchanged (new products: hidden)
     opening_stock: Decimal | None = Field(default=None, ge=0, max_digits=14, decimal_places=3)
 
     @field_validator("*", mode="before")
@@ -93,6 +96,13 @@ class ImportRow(BaseModel):
     def _bool(cls, value: Any) -> Any:
         if value is None:
             return True
+        return str(value).strip().lower() in {"1", "true", "yes", "y"}
+
+    @field_validator("show_online", mode="before")
+    @classmethod
+    def _optional_bool(cls, value: Any) -> Any:
+        if value is None:
+            return None
         return str(value).strip().lower() in {"1", "true", "yes", "y"}
 
 
@@ -218,6 +228,7 @@ async def _import_products(db: AsyncSession, job: ImportJob) -> dict[str, Any]:
                         base_unit_id=units[row.unit],
                         tax_rate_id=taxes[row.tax] if row.tax else None,
                         track_inventory=row.track_inventory,
+                        show_online=bool(row.show_online),
                         variants=[
                             VariantIn(
                                 sku=row.sku,
@@ -299,6 +310,8 @@ async def _update_existing(
     product.brand_id = brand_id or product.brand_id
     if row.reorder_point is not None:
         variant.reorder_point = row.reorder_point
+    if row.show_online is not None:
+        product.show_online = row.show_online
     # Replace only the base retail price; other price tiers are left untouched.
     level = await pricing.default_price_level(db, principal.company_id)
     base_unit = await db.scalar(
@@ -390,6 +403,7 @@ async def export_products_csv(db: AsyncSession, principal: Principal, *, include
             TaxRate.code.label("tax"),
             Product.track_inventory,
             ProductVariant.reorder_point,
+            Product.show_online,
             on_hand.c.qty.label("on_hand"),
         )
         .join(Product, Product.id == ProductVariant.product_id)

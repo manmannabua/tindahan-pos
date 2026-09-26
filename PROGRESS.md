@@ -200,10 +200,26 @@ Last updated: 2026-09-26
 - **Light/dark toggle** (next-themes) in admin and POS headers; sidebar logo and "Open POS
   terminal" stay fixed, the nav scrolls with a scrollbar shown only on hover.
 
-**Current checks (all green):** backend `pytest` 142 · ruff · mypy strict. Frontend lint ·
-typecheck · 243 Vitest · build · **8/8 Playwright** (admin, catalog→PO→report export, offline
+### Online catalog ✅ (docs/ONLINE_CATALOG.md)
+- Public, browse-only store page `/s/<link-name>` (not e-commerce): search, categories, branch
+  picker, in-stock filter, product details, price, availability ("Stock updated N min ago"),
+  contact links. Server-rendered first view; refreshes stock every 60 s while visible.
+- Owner: *Catalog → Online catalog* (enable, link name, branches, stock display
+  AVAILABILITY/QUANTITY/HIDDEN, low-stock threshold, prices on/off, search-engine indexing
+  (default off), contact info, copy link, printable QR sign). Products are hidden by default
+  (`products.show_online`); product switch, bulk show/hide (selected rows or all matching the
+  filter), Online filter + badge, CSV `show_online` column.
+- Backend module `storefront/` (admin + anonymous public router); explicit public schemas with
+  pinned field sets (no cost/SKU/barcode leaks); 404 for unknown/disabled/unpublished; stock =
+  store + backroom locations of the branch, negatives shown as out; Redis 30 s cache with
+  per-company version bump on owner changes; per-IP rate limit. Nginx: `public` rate-limit zone
+  and 10 s micro-cache for `/api/v1/public/`, credentials stripped.
+- The POS service worker is not registered on `/s/` pages.
+
+**Current checks (all green):** backend `pytest` 157 · ruff · mypy strict. Frontend lint ·
+typecheck · 253 Vitest · build · **9/9 Playwright** (admin, catalog→PO→report export, offline
 20-sale critical test, two-terminal oversell, Phase 7 offline promo/customer/void/return, offline
-SC sale + cross-terminal return, smoke).
+SC sale + cross-terminal return, online catalog publish→shopper→stock out, smoke).
 
 ## Next (suggested)
 1. Deploy a staging VM with `docker-compose.prod.yml` (never run yet: no Docker on the dev
@@ -213,9 +229,11 @@ SC sale + cross-terminal return, smoke).
 3. PH-specific leftovers: senior-citizen 5% discount on basic necessities (DTI/DA rules), BIR
    accreditation itself (a formal process, not code).
 4. Friendly messages for newer error codes in `frontend/lib/api/errors.ts`; SKU toggle on labels.
-5. Multi-item promotion bundles (needs a new evaluator version + vectors on both sides).
-6. `.xlsx` import/export (CSV UTF-8 works with Excel today).
-7. Future analytics/AI modules reading the ledger (see ARCHITECTURE.md §7).
+5. Online catalog extras: promo badges, store subdomains, "ask about this item" via Messenger,
+   visit statistics (docs/ONLINE_CATALOG.md §5).
+6. Multi-item promotion bundles (needs a new evaluator version + vectors on both sides).
+7. `.xlsx` import/export (CSV UTF-8 works with Excel today).
+8. Future analytics/AI modules reading the ledger (see ARCHITECTURE.md §7).
 ## Architectural decisions (summary — details in docs/ARCHITECTURE.md §2)
 - Modular monolith; route → service → repository; service owns the single commit.
 - Async API (asyncpg); `lazy="raise"` relationships; never touch expired attributes in async.
@@ -241,6 +259,9 @@ SC sale + cross-terminal return, smoke).
   cannot run here until Redis (or Memurai) is installed; tasks are tested by direct calls.
 - PostgreSQL 17 runs as a Windows service; superuser `postgres`/`postgres` (dev only);
   app role `pos`/`pos`; databases `pos` (dev) and `pos_test` (tests drop/recreate schema).
+- Port 8000 on this machine is currently taken by another project (a Laravel dev server from
+  `D:/dev/booking-system`). This session ran the POS backend on **8010**: start the web app with
+  `API_ORIGIN=http://localhost:8010` and e2e with `E2E_API_URL=http://localhost:8010/api/v1`.
 - `verify_balances` detects balance≠ledger drift but not ledger rows lacking a balance row
   (would need a full outer join) — low risk because both are written in one transaction.
 - The spec's example barcode `4800361419117` has an invalid EAN-13 check digit; it is accepted
@@ -269,7 +290,7 @@ SC sale + cross-terminal return, smoke).
   sync → server check; `TERMINAL=T02` for a second terminal). Screenshots per step.
 
 ## Pending migrations
-- None pending. Latest: `e1c3cb7b756c` SC/PWD discount + BIR fields (before it: `ff379da3c120` import jobs + trigram search). Revisions (in order): `ef8f6c10c69c` foundation, `1e3cfbdadecb` catalog and
+- None pending. Latest: `5f5a4551ceb3` storefronts + `products.show_online` (before it: `e1c3cb7b756c` SC/PWD discount + BIR fields, `ff379da3c120` import jobs + trigram search). Revisions (in order): `ef8f6c10c69c` foundation, `1e3cfbdadecb` catalog and
   inventory ledger, `43cc34f6bf79` sales/payments/cash sessions/sync, `311a2c40e3d3` inventory
   documents, `34f69fa13fd1` suppliers and purchasing, `428f5d187452` customers/returns/
   promotions, `c5a1c4ea7bf5` expenses and report exports. Run `uv run alembic upgrade head`.

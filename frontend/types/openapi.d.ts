@@ -1901,6 +1901,95 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/storefront": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Storefront */
+        get: operations["get_storefront_api_v1_storefront_get"];
+        /** Save Storefront */
+        put: operations["save_storefront_api_v1_storefront_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/products/show-online": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set Products Online
+         * @description Show or hide products in the online catalog: the given ids, or all matching a filter.
+         */
+        post: operations["set_products_online_api_v1_products_show_online_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/stores/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Public Store */
+        get: operations["public_store_api_v1_public_stores__slug__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/stores/{slug}/products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Public Products */
+        get: operations["public_products_api_v1_public_stores__slug__products_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/stores/{slug}/products/{product_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Public Product */
+        get: operations["public_product_api_v1_public_stores__slug__products__product_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2045,6 +2134,11 @@ export interface components {
          * @enum {string}
          */
         AuthClient: "admin" | "pos";
+        /**
+         * Availability
+         * @enum {string}
+         */
+        Availability: "IN_STOCK" | "LOW_STOCK" | "OUT_OF_STOCK";
         /** BalanceRead */
         BalanceRead: {
             /**
@@ -3688,12 +3782,31 @@ export interface components {
             /** Image Url */
             image_url?: string | null;
             /**
+             * Show Online
+             * @default false
+             */
+            show_online: boolean;
+            /**
              * Units
              * @description Additional units besides the base unit
              */
             units?: components["schemas"]["ProductUnitIn"][];
             /** Variants */
             variants: components["schemas"]["VariantIn"][];
+        };
+        /** ProductFilter */
+        ProductFilter: {
+            /** Q */
+            q?: string | null;
+            /** Category Id */
+            category_id?: string | null;
+            /** Brand Id */
+            brand_id?: string | null;
+            /**
+             * Include Inactive
+             * @default false
+             */
+            include_inactive: boolean;
         };
         /** ProductRead */
         ProductRead: {
@@ -3726,6 +3839,8 @@ export interface components {
             sc_pwd_eligible: boolean;
             /** Image Url */
             image_url: string | null;
+            /** Show Online */
+            show_online: boolean;
             /** Is Active */
             is_active: boolean;
             /** Units */
@@ -3752,6 +3867,8 @@ export interface components {
             sc_pwd_eligible: boolean;
             /** Image Url */
             image_url: string | null;
+            /** Show Online */
+            show_online: boolean;
             /** Is Active */
             is_active: boolean;
             /** Variant Count */
@@ -3824,8 +3941,26 @@ export interface components {
             sc_pwd_eligible?: boolean | null;
             /** Image Url */
             image_url?: string | null;
+            /** Show Online */
+            show_online?: boolean | null;
             /** Is Active */
             is_active?: boolean | null;
+        };
+        /** ProductsOnlineResult */
+        ProductsOnlineResult: {
+            /** Updated */
+            updated: number;
+        };
+        /**
+         * ProductsOnlineUpdate
+         * @description Publish/unpublish either the listed products or every product matching a filter.
+         */
+        ProductsOnlineUpdate: {
+            /** Show Online */
+            show_online: boolean;
+            /** Product Ids */
+            product_ids?: string[] | null;
+            filter?: components["schemas"]["ProductFilter"] | null;
         };
         /** PromotionCreate */
         PromotionCreate: {
@@ -3961,6 +4096,174 @@ export interface components {
              * @default true
              */
             is_active: boolean;
+        };
+        /** PublicBranch */
+        PublicBranch: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Address */
+            address: string | null;
+            /** Phone */
+            phone: string | null;
+            /**
+             * Synced At
+             * @description Most recent terminal sync: stock is as of then
+             */
+            synced_at: string | null;
+        };
+        /** PublicCategory */
+        PublicCategory: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Product Count */
+            product_count: number;
+        };
+        /** PublicProduct */
+        PublicProduct: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Brand */
+            brand: string | null;
+            /** Category */
+            category: string | null;
+            /** Image Url */
+            image_url: string | null;
+            /**
+             * Unit
+             * @description Base unit name, e.g. 'piece' or 'kilogram'
+             */
+            unit: string;
+            /**
+             * Price
+             * @description Lowest variant price; null when prices are hidden
+             */
+            price: string | null;
+            /** Price Varies */
+            price_varies: boolean;
+            /** @description Null when stock is hidden */
+            availability: components["schemas"]["Availability"] | null;
+            /**
+             * Quantity
+             * @description Only when the store shows exact quantities
+             */
+            quantity: string | null;
+            /** Variant Count */
+            variant_count: number;
+        };
+        /** PublicProductDetail */
+        PublicProductDetail: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Brand */
+            brand: string | null;
+            /** Category */
+            category: string | null;
+            /** Image Url */
+            image_url: string | null;
+            /**
+             * Unit
+             * @description Base unit name, e.g. 'piece' or 'kilogram'
+             */
+            unit: string;
+            /**
+             * Price
+             * @description Lowest variant price; null when prices are hidden
+             */
+            price: string | null;
+            /** Price Varies */
+            price_varies: boolean;
+            /** @description Null when stock is hidden */
+            availability: components["schemas"]["Availability"] | null;
+            /**
+             * Quantity
+             * @description Only when the store shows exact quantities
+             */
+            quantity: string | null;
+            /** Variant Count */
+            variant_count: number;
+            /** Description */
+            description: string | null;
+            /** Variants */
+            variants: components["schemas"]["PublicVariant"][];
+        };
+        /** PublicProductPage */
+        PublicProductPage: {
+            /** Items */
+            items: components["schemas"]["PublicProduct"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+            /**
+             * Branch Id
+             * Format: uuid
+             */
+            branch_id: string;
+            /** Synced At */
+            synced_at: string | null;
+        };
+        /** PublicStore */
+        PublicStore: {
+            /** Slug */
+            slug: string;
+            /** Name */
+            name: string;
+            /** About */
+            about: string | null;
+            /** Phone */
+            phone: string | null;
+            /** Messenger Url */
+            messenger_url: string | null;
+            /** Hours */
+            hours: string | null;
+            /** Currency */
+            currency: string;
+            /** Show Prices */
+            show_prices: boolean;
+            stock_display: components["schemas"]["StockDisplay"];
+            /** Allow Indexing */
+            allow_indexing: boolean;
+            /** Branches */
+            branches: components["schemas"]["PublicBranch"][];
+            /** Categories */
+            categories: components["schemas"]["PublicCategory"][];
+        };
+        /** PublicVariant */
+        PublicVariant: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string | null;
+            /** Price */
+            price: string | null;
+            availability: components["schemas"]["Availability"] | null;
+            /** Quantity */
+            quantity: string | null;
         };
         /** PullResponse */
         PullResponse: {
@@ -4775,6 +5078,11 @@ export interface components {
          * @enum {string}
          */
         StockCountStatus: "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+        /**
+         * StockDisplay
+         * @enum {string}
+         */
+        StockDisplay: "AVAILABILITY" | "QUANTITY" | "HIDDEN";
         /** StockLocationCreate */
         StockLocationCreate: {
             /** Code */
@@ -4820,6 +5128,74 @@ export interface components {
             is_default?: boolean | null;
             /** Is Active */
             is_active?: boolean | null;
+        };
+        /** StorefrontRead */
+        StorefrontRead: {
+            /**
+             * Configured
+             * @description False until the owner saves the settings once
+             */
+            configured: boolean;
+            /** Slug */
+            slug: string;
+            /** Enabled */
+            enabled: boolean;
+            /** Branch Ids */
+            branch_ids: string[];
+            stock_display: components["schemas"]["StockDisplay"];
+            /** Low Stock Threshold */
+            low_stock_threshold: string;
+            /** Show Prices */
+            show_prices: boolean;
+            /** Allow Indexing */
+            allow_indexing: boolean;
+            /** About */
+            about: string | null;
+            /** Phone */
+            phone: string | null;
+            /** Messenger Url */
+            messenger_url: string | null;
+            /** Hours */
+            hours: string | null;
+            /**
+             * Published Products
+             * @description Active products shown online
+             */
+            published_products: number;
+        };
+        /** StorefrontUpdate */
+        StorefrontUpdate: {
+            /** Slug */
+            slug: string;
+            /** Enabled */
+            enabled: boolean;
+            /** Branch Ids */
+            branch_ids: string[];
+            /** @default AVAILABILITY */
+            stock_display: components["schemas"]["StockDisplay"];
+            /**
+             * Low Stock Threshold
+             * @default 5
+             */
+            low_stock_threshold: number | string;
+            /**
+             * Show Prices
+             * @default true
+             */
+            show_prices: boolean;
+            /**
+             * Allow Indexing
+             * @default false
+             */
+            allow_indexing: boolean;
+            /** About */
+            about?: string | null;
+            /** Phone */
+            phone?: string | null;
+            /** Messenger Url */
+            messenger_url?: string | null;
+            /** Hours */
+            hours?: string | null;
         };
         /** SupplierCreate */
         SupplierCreate: {
@@ -7006,6 +7382,8 @@ export interface operations {
                 category_id?: string | null;
                 brand_id?: string | null;
                 include_inactive?: boolean;
+                /** @description Only products shown / not shown online */
+                online?: boolean | null;
                 limit?: number;
                 offset?: number;
             };
@@ -9682,6 +10060,195 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+        };
+    };
+    get_storefront_api_v1_storefront_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StorefrontRead"];
+                };
+            };
+        };
+    };
+    save_storefront_api_v1_storefront_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StorefrontUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StorefrontRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_products_online_api_v1_products_show_online_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductsOnlineUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductsOnlineResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_store_api_v1_public_stores__slug__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicStore"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_products_api_v1_public_stores__slug__products_get: {
+        parameters: {
+            query?: {
+                q?: string | null;
+                category_id?: string | null;
+                branch_id?: string | null;
+                in_stock?: boolean;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicProductPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_product_api_v1_public_stores__slug__products__product_id__get: {
+        parameters: {
+            query?: {
+                branch_id?: string | null;
+            };
+            header?: never;
+            path: {
+                slug: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicProductDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

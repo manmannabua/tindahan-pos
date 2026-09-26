@@ -18,6 +18,8 @@ export interface GeneralValues {
   trackInventory: boolean;
   /** Senior citizen / PWD discount applies (e.g. medicines). */
   scPwdEligible: boolean;
+  /** Listed in the public online catalog. */
+  showOnline: boolean;
   isActive: boolean;
 }
 
@@ -30,6 +32,7 @@ export const emptyGeneral: GeneralValues = {
   taxRateId: NONE,
   trackInventory: true,
   scPwdEligible: false,
+  showOnline: false,
   isActive: true,
 };
 
@@ -95,6 +98,10 @@ export function ProductGeneralFields({ value, onChange, mode, nameError }: Props
         <div className="flex items-center gap-2">
           <Switch id="sc-pwd-eligible" checked={value.scPwdEligible} onCheckedChange={(v) => set("scPwdEligible", v)} />
           <Label htmlFor="sc-pwd-eligible">Senior citizen / PWD discount applies</Label>
+        </div>
+        <div className="flex items-center gap-2">
+          <Switch id="show-online" checked={value.showOnline} onCheckedChange={(v) => set("showOnline", v)} />
+          <Label htmlFor="show-online">Show in online catalog</Label>
         </div>
         {mode === "edit" && (
           <div className="flex items-center gap-2">

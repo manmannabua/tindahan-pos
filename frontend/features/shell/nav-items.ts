@@ -6,6 +6,7 @@ import {
   ClipboardCheckIcon,
   ContactIcon,
   FlagIcon,
+  GlobeIcon,
   HistoryIcon,
   LayoutDashboardIcon,
   type LucideIcon,
@@ -58,6 +59,7 @@ export const NAV_ITEMS: NavItem[] = [
 
   { section: "Catalog", href: "/products", label: "Products", icon: PackageIcon, permission: ADMIN_PERM.PRODUCTS_READ },
   { section: "Catalog", href: "/catalog", label: "Catalog setup", icon: TagsIcon, permission: ADMIN_PERM.PRODUCTS_READ },
+  { section: "Catalog", href: "/online-catalog", label: "Online catalog", icon: GlobeIcon, permission: PERM.COMPANY_MANAGE },
 
   { section: "Inventory", href: "/inventory", label: "Stock", icon: BoxesIcon, permission: ADMIN_PERM.INVENTORY_READ },
   { section: "Inventory", href: "/inventory/counts", label: "Stock counts", icon: ClipboardCheckIcon, permission: ADMIN_PERM.INVENTORY_READ },

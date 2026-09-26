@@ -4,13 +4,13 @@ from httpx import AsyncClient
 
 from tests.helpers import signup
 
-CSV = """name,sku,barcode,category,brand,unit,price,cost,tax,track_inventory,reorder_point,opening_stock
-Coke 1.5L,COKE15,4800361419116,Drinks,Coca-Cola,PC,75.00,60,VAT12,yes,10,24
-Sprite 1.5L,SPRITE15,036000291452,Drinks,Coca-Cola,PC,70.00,55,,yes,,12
-Rice 1kg,RICE1,,Grocery,,KG,52.50,45,VAT_EXEMPT,yes,20,100.5
-Bad unit,BAD1,,,,LITERS,10.00,,,,,
-Negative price,NEG1,,,,PC,-5,,,,,
-Gift wrap,WRAP,,Services,,PC,20.00,,,no,,
+CSV = """name,sku,barcode,category,brand,unit,price,cost,tax,track_inventory,reorder_point,show_online,opening_stock
+Coke 1.5L,COKE15,4800361419116,Drinks,Coca-Cola,PC,75.00,60,VAT12,yes,10,yes,24
+Sprite 1.5L,SPRITE15,036000291452,Drinks,Coca-Cola,PC,70.00,55,,yes,,,12
+Rice 1kg,RICE1,,Grocery,,KG,52.50,45,VAT_EXEMPT,yes,20,no,100.5
+Bad unit,BAD1,,,,LITERS,10.00,,,,,,
+Negative price,NEG1,,,,PC,-5,,,,,,
+Gift wrap,WRAP,,Services,,PC,20.00,,,no,,,
 """
 
 
@@ -61,7 +61,7 @@ async def test_import_then_upsert_then_export(
     assert coke.startswith(
         "Coke 1.5L (new label),COKE15,4800361419116,Drinks,Coca-Cola,PC,79.00,60"
     )
-    assert coke.endswith(",24.000")
+    assert coke.endswith(",True,24.000")  # show_online, on_hand
     rice = next(line for line in lines if ",RICE1," in line)
     assert rice.endswith(",100.500")
 

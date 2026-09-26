@@ -27,6 +27,8 @@ from app.modules.reporting.router import router as reporting_router
 from app.modules.returns.router import router as returns_router
 from app.modules.review_flags.router import router as review_flags_router
 from app.modules.sales.router import router as sales_router
+from app.modules.storefront.router import public_router as public_catalog_router
+from app.modules.storefront.router import router as storefront_router
 from app.modules.suppliers.router import router as suppliers_router
 from app.modules.sync.router import router as sync_router
 from app.modules.units.router import router as units_router
@@ -63,5 +65,7 @@ for r in (
     dashboard_router,
     realtime_router,
     catalog_io_router,
+    storefront_router,
+    public_catalog_router,
 ):
     api_router.include_router(r)

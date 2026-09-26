@@ -23,6 +23,7 @@ function toValues(p: Product): GeneralValues {
     taxRateId: p.tax_rate_id,
     trackInventory: p.track_inventory,
     scPwdEligible: p.sc_pwd_eligible,
+    showOnline: p.show_online,
     isActive: p.is_active,
   };
 }
@@ -47,6 +48,7 @@ export function ProductGeneralCard({ product, canEdit }: { product: Product; can
         tax_rate_id: values.taxRateId,
         track_inventory: values.trackInventory,
         sc_pwd_eligible: values.scPwdEligible,
+        show_online: values.showOnline,
         is_active: values.isActive,
       });
       toast.success("Product saved");
@@ -61,6 +63,7 @@ export function ProductGeneralCard({ product, canEdit }: { product: Product; can
         <CardTitle className="flex items-center gap-2">
           General
           {product.sc_pwd_eligible && <Badge variant="secondary">SC/PWD eligible</Badge>}
+          {product.show_online && <Badge variant="outline">Online</Badge>}
         </CardTitle>
       </CardHeader>
       <CardContent className="grid gap-4">

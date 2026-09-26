@@ -46,6 +46,13 @@ class Product(UUIDPrimaryKeyMixin, CompanyScopedMixin, TimestampMixin, SyncTrack
             postgresql_using="gin",
             postgresql_ops={"name": "gin_trgm_ops"},
         ),
+        # The public catalog lists only published products of one company, by name.
+        Index(
+            "ix_products_online",
+            "company_id",
+            "name",
+            postgresql_where=text("show_online AND is_active"),
+        ),
     )
 
     name: Mapped[str] = mapped_column(String(200), index=True)
@@ -63,6 +70,8 @@ class Product(UUIDPrimaryKeyMixin, CompanyScopedMixin, TimestampMixin, SyncTrack
     # Qualifies for the senior citizen / PWD discount (RA 9994 / RA 10754), e.g. medicines.
     sc_pwd_eligible: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
     image_url: Mapped[str | None] = mapped_column(String(500))
+    # Listed in the public online catalog (storefront module). Opt-in per product.
+    show_online: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
     is_active: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
 
     variants: Mapped[list["ProductVariant"]] = relationship(

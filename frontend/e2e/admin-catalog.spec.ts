@@ -67,7 +67,7 @@ test("catalog → purchasing → stock → report export", async ({ page }) => {
   // Search by barcode
   await page.goto("/products");
   await page.getByLabel("Search name, SKU or barcode").fill(barcode);
-  await expect(page.getByRole("cell", { name: "E2E Cola 1.5L" })).toBeVisible();
+  await expect(page.getByRole("cell", { name: "E2E Cola 1.5L", exact: true })).toBeVisible();
   await expect(page.getByRole("cell", { name: "₱75.00" })).toBeVisible();
 
   // Purchase order (item added by scanning the barcode into the picker)

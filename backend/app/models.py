@@ -38,6 +38,7 @@ from app.modules.reporting.models import ReportExport
 from app.modules.returns.models import Refund, ReturnItem, SaleReturn
 from app.modules.review_flags.models import ReviewFlag
 from app.modules.sales.models import Sale, SaleItem
+from app.modules.storefront.models import Storefront
 from app.modules.suppliers.models import Supplier
 from app.modules.sync.models import SyncOperation
 from app.modules.units.models import Unit
@@ -92,6 +93,7 @@ __all__ = [
     "StockLocation",
     "StockTransfer",
     "StockTransferLine",
+    "Storefront",
     "Supplier",
     "SyncOperation",
     "TaxRate",

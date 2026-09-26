@@ -45,6 +45,7 @@ class ProductCreate(Schema):
     track_inventory: bool = True
     sc_pwd_eligible: bool = False
     image_url: str | None = Field(default=None, max_length=500)
+    show_online: bool = False
     units: list[ProductUnitIn] = Field(
         default_factory=list, max_length=10, description="Additional units besides the base unit"
     )
@@ -67,6 +68,7 @@ class ProductUpdate(Schema):
     track_inventory: bool | None = None
     sc_pwd_eligible: bool | None = None
     image_url: str | None = Field(default=None, max_length=500)
+    show_online: bool | None = None
     is_active: bool | None = None
 
 
@@ -141,6 +143,7 @@ class ProductRead(ResponseSchema):
     track_inventory: bool
     sc_pwd_eligible: bool
     image_url: str | None
+    show_online: bool
     is_active: bool
     units: list[ProductUnitRead]
     variants: list[VariantRead]
@@ -154,6 +157,7 @@ class ProductSummary(ResponseSchema):
     track_inventory: bool
     sc_pwd_eligible: bool
     image_url: str | None
+    show_online: bool
     is_active: bool
     variant_count: int
     sku: str | None

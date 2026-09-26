@@ -1,43 +1,14 @@
 "use client";
 
-import { ImageIcon, Trash2Icon, UploadIcon } from "lucide-react";
+import { Trash2Icon, UploadIcon } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { ProductThumb } from "@/components/shared/product-thumb";
 import { Button } from "@/components/ui/button";
 import { useRemoveProductImage, useSetProductImage } from "@/features/catalog/api";
 import { errorMessage } from "@/lib/api/errors";
 import { ACCEPTED_PHOTO_TYPES, resizePhoto } from "@/lib/images/resize";
-import { cn } from "@/lib/utils";
-
-/** Square product photo, or a neutral placeholder icon when there is none (or it fails to load). */
-export function ProductThumb({
-  src,
-  alt,
-  className,
-}: {
-  src: string | null | undefined;
-  alt: string;
-  className?: string;
-}) {
-  const [failedSrc, setFailedSrc] = useState<string | null>(null);
-  const showImage = src && src !== failedSrc;
-  return (
-    <div
-      className={cn(
-        "bg-muted text-muted-foreground flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-md border",
-        className,
-      )}
-    >
-      {showImage ? (
-        // eslint-disable-next-line @next/next/no-img-element -- already resized client-side; served by the API
-        <img src={src} alt={alt} loading="lazy" className="size-full object-cover" onError={() => setFailedSrc(src)} />
-      ) : (
-        <ImageIcon className="size-1/2" aria-hidden />
-      )}
-    </div>
-  );
-}
 
 /** Photo preview with upload/replace/remove controls for the product detail page. */
 export function ProductPhotoEditor({
