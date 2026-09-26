@@ -258,10 +258,18 @@ Last updated: 2026-09-26
 **Current checks (all green):** backend `pytest` 173 · ruff · mypy strict. Frontend lint ·
 typecheck · 264 Vitest · build · **11/11 Playwright**.
 
+## Live demo
+**https://tindahan.for-demo.online** on `shared-lemp-vm` (native systemd, no Docker) since
+2026-09-26 — see `infra/deploy/shared-lemp/README.md`. Verified live: HTTPS, admin sign-in,
+terminal setup, service worker precache, **offline reload + offline sale → synced once**,
+public catalog `/s/demo-mini-mart` with the Nginx micro-cache (MISS→HIT), Celery with real
+Redis (db 3). Footprint: API ~220 MB, worker ~140 MB, web ~75 MB; 3 PostgreSQL connections.
+Demo logins (random passwords) in `/root/tindahan-demo.txt` on the VM. Upgrade:
+`package-release.sh` → `gcloud compute scp` → `sudo bash install.sh`.
+
 ## Next (suggested)
-1. Deploy a staging VM with `docker-compose.prod.yml` (never run yet: no Docker on the dev
-   machine) — verify Nginx, TLS, Celery worker/beat with real Redis, service-worker update flow
-   in a production build, and install the PWA on a real tablet + USB scanner + thermal printer.
+1. Install the PWA on a real tablet with a USB scanner + thermal printer against the live demo;
+   `docker-compose.prod.yml` itself is still untested (the demo runs natively).
 2. Test ESC/POS printing + drawer kick on real printers; per-item stock page for deep links.
 3. PH-specific leftovers: senior-citizen 5% discount on basic necessities (DTI/DA rules), BIR
    accreditation itself (a formal process, not code).

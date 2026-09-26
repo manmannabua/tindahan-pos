@@ -124,12 +124,15 @@ server { listen 80; listen [::]:80; server_name ${HOST};
   location / { return 404; } }
 NG
   ln -sf /etc/nginx/sites-available/tindahan /etc/nginx/sites-enabled/tindahan
-  nginx -t && systemctl reload nginx
+  nginx -t || { echo "ERROR: nginx config test failed"; exit 1; }
+  systemctl reload nginx
   certbot certonly --webroot -w /var/www/html -d "$HOST" --non-interactive --agree-tos --register-unsafely-without-email --keep-until-expiring
 fi
 install -m 644 "$APP/infra/deploy/shared-lemp/nginx-tindahan.conf" /etc/nginx/sites-available/tindahan
 ln -sf /etc/nginx/sites-available/tindahan /etc/nginx/sites-enabled/tindahan
-nginx -t && systemctl reload nginx
+# Never leave a config that fails `nginx -t` enabled: it would block every tenant's reload.
+nginx -t || { rm -f /etc/nginx/sites-enabled/tindahan; nginx -t; echo "ERROR: nginx config test failed; tindahan site disabled"; exit 1; }
+systemctl reload nginx
 
 log "health"
 for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8730/api/v1/health >/dev/null && break; sleep 1; done
