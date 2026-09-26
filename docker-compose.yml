@@ -1,0 +1,97 @@
+# Development environment.
+#   docker compose up                   everything
+#   docker compose up postgres redis    only the databases (run API/web natively)
+#   docker compose --profile monitoring up flower
+#
+# PostgreSQL and Redis ports are published to localhost only, for native development tools.
+
+name: pos-dev
+
+x-backend-env: &backend-env
+  ENVIRONMENT: development
+  DATABASE_URL: postgresql+asyncpg://pos:pos@postgres:5432/pos
+  REDIS_URL: redis://redis:6379/0
+  JWT_SECRET: dev-only-secret-change-me-0123456789abcdef
+  COOKIE_SECURE: "false"
+  CORS_ORIGINS: '["http://localhost:3000"]'
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: pos
+      POSTGRES_PASSWORD: pos
+      POSTGRES_DB: pos
+    ports: ["127.0.0.1:5432:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/postgres/init-test-db.sql:/docker-entrypoint-initdb.d/init-test-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pos"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "no"]
+    ports: ["127.0.0.1:6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: ./backend
+      args: { INSTALL_DEV: "true" }
+    environment: *backend-env
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    ports: ["127.0.0.1:8000:8000"]
+    volumes: ["./backend:/app", "/app/.venv"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  worker:
+    build:
+      context: ./backend
+      args: { INSTALL_DEV: "true" }
+    environment: *backend-env
+    command: celery -A app.workers.celery_app worker -l info
+    volumes: ["./backend:/app", "/app/.venv"]
+    depends_on: [api]
+
+  beat:
+    build:
+      context: ./backend
+      args: { INSTALL_DEV: "true" }
+    environment: *backend-env
+    command: celery -A app.workers.celery_app beat -l info --schedule /tmp/celerybeat-schedule
+    volumes: ["./backend:/app", "/app/.venv"]
+    depends_on: [api]
+
+  web:
+    build:
+      context: ./frontend
+      target: dev
+    environment:
+      API_ORIGIN: http://api:8000
+      WATCHPACK_POLLING: "true"
+    ports: ["127.0.0.1:3000:3000"]
+    volumes: ["./frontend:/app", "/app/node_modules", "/app/.next"]
+    depends_on: [api]
+
+  flower:
+    profiles: [monitoring]
+    image: mher/flower:2.0
+    environment:
+      CELERY_BROKER_URL: redis://redis:6379/0
+    ports: ["127.0.0.1:5555:5555"]
+    depends_on: [redis]
+
+volumes:
+  pgdata:

@@ -1,0 +1,77 @@
+[project]
+name = "pos-backend"
+version = "0.1.0"
+description = "POS, inventory, purchasing and small business management API"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.141",
+    "uvicorn[standard]>=0.54",
+    "pydantic>=2.13",
+    "pydantic-settings>=2.15",
+    "email-validator>=2.2",
+    "sqlalchemy[asyncio]>=2.1",
+    "asyncpg>=0.31",
+    "psycopg[binary]>=3.3",
+    "alembic>=1.20",
+    "redis>=8.1",
+    "celery[redis]>=5.6",
+    "pyjwt>=2.15",
+    "argon2-cffi>=25.1",
+    "cryptography>=50",
+    "uuid-utils>=1.0",
+    "structlog>=26.1",
+    "python-multipart>=0.0.20",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1",
+    "pytest-asyncio>=1.4",
+    "httpx>=0.28",
+    "fakeredis>=2.38",
+    "ruff>=0.16",
+    "mypy>=2.3",
+    "celery-types>=0.23",
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "N", "S", "ASYNC", "SIM", "RUF", "PTH", "DTZ"]
+ignore = [
+    "B008",   # FastAPI Depends() in defaults is idiomatic
+    "S105",   # false positives on token-type string constants
+    "RUF012",
+]
+
+[tool.ruff.lint.isort]
+known-third-party = ["alembic"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S106", "S311", "E501"]
+"alembic/**" = ["N999", "E501"]
+"scripts/**" = ["E501", "S101"]  # data tables; asserts in dev scripts
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+plugins = ["pydantic.mypy"]
+ignore_missing_imports = true
+exclude = ["alembic/", "tests/"]
+
+[[tool.mypy.overrides]]
+module = ["app.workers.*"]
+disallow_untyped_decorators = false
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+testpaths = ["tests"]
+addopts = "-ra"
+filterwarnings = ["ignore::DeprecationWarning:passlib.*"]

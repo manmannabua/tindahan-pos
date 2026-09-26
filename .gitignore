@@ -1,0 +1,34 @@
+# Secrets
+.env
+.env.*
+!.env.example
+!infra/.env.prod.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+celerybeat-schedule*
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo
+next-env.d.ts
+public/sw.js
+public/sw.js.map
+public/swe-worker-*.js
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
